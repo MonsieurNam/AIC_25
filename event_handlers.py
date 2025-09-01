@@ -188,9 +188,9 @@ def _get_full_video_path_from_keyframe(keyframe_path: str) -> Optional[str]:
 def on_gallery_select(response_state: Dict, current_page: int, evt: gr.SelectData):
     """
     Xử lý khi click vào ảnh trong gallery.
-    PHIÊN BẢN V2: Cập nhật thêm công cụ tính toán và nút xem full video.
+    PHIÊN BẢN V2.1: Sửa lỗi tên component.
     """
-    empty_return = (None, None, "", None, None, "", "")
+    empty_return = (None, None, "", None, "", 0.0, None) # Phải trả về 7 giá trị
     if not response_state or evt is None: return empty_return
 
     results = response_state.get("results", [])
@@ -200,24 +200,22 @@ def on_gallery_select(response_state: Dict, current_page: int, evt: gr.SelectDat
 
     selected_result = results[global_index]
     keyframe_path = selected_result.get('keyframe_path')
-    video_path = selected_result.get('video_path') # Đã có sẵn trong metadata
-    timestamp = selected_result.get('timestamp')
+    video_path = selected_result.get('video_path')
+    timestamp = selected_result.get('timestamp', 0.0)
     video_id = selected_result.get('video_id')
 
-    # Tạo clip 30 giây
     video_clip_path = create_video_segment(video_path, timestamp, duration=30)
-    
-    # Tạo HTML hiển thị điểm số
     analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
 
+    # Thứ tự trả về phải khớp với `analysis_outputs` trong app.py
     return (
         keyframe_path,                      # selected_image_display
         video_clip_path,                    # video_player
         analysis_html,                      # analysis_display_html
         selected_result,                    # selected_candidate_for_submission
         video_id,                           # frame_calculator_video_id
-        timestamp,                          # frame_calculator_timestamp
-        video_path                          # State ẩn để nút "Mở video gốc" sử dụng
+        str(timestamp),                     # frame_calculator_time_input (trả về string)
+        video_path                          # full_video_path_state
     )
     
 def get_full_video_path_for_button(video_path):
@@ -382,10 +380,10 @@ def clear_all():
     """
     Reset toàn bộ giao diện về trạng thái ban đầu.
     Trả về một tuple lớn chứa tất cả các giá trị mặc định.
+    Thứ tự phải khớp 1-1 với `clear_all_outputs` trong app.py.
     """
-    # Giá trị trả về phải khớp 1-1 với danh sách `clear_all_outputs` trong app.py
     return (
-        # --- Tab Mắt Thần (7 outputs) ---
+        # --- 1. Tab Mắt Thần (6 outputs) ---
         [],                                         # results_gallery
         "",                                         # status_output
         None,                                       # response_state
@@ -393,7 +391,7 @@ def clear_all():
         [],                                         # gallery_items_state
         1,                                          # current_page_state
         
-        # --- Tab Tai Thính (6 outputs) ---
+        # --- 2. Tab Tai Thính (9 outputs) ---
         "",                                         # transcript_query_1
         "",                                         # transcript_query_2
         "",                                         # transcript_query_3
@@ -401,22 +399,25 @@ def clear_all():
         pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), # transcript_results_df
         None,                                       # transcript_video_player
         None,                                       # transcript_results_state
+        "",                                         # full_transcript_display
+        None,                                       # transcript_keyframe_display
 
-        # --- Cột Phải: Trạm Phân tích (4 outputs) ---
+        # --- 3. Cột Phải: Trạm Phân tích Visual (4 outputs) ---
         None,                                       # selected_image_display
         None,                                       # video_player
+        "",                                         # analysis_display_html
         None,                                       # selected_candidate_for_submission
-        None,                                       # full_video_path_state (State)
 
-        # --- Cột Phải: Công cụ tính toán (3 outputs) ---
+        # --- 4. Cột Phải: Công cụ tính toán (3 outputs) ---
         "",                                         # frame_calculator_video_id
-        0,                                          # frame_calculator_timestamp
+        "",                                         # frame_calculator_time_input
         "",                                         # frame_calculator_output
 
-        # --- Cột Phải: Vùng Nộp bài (5 outputs) ---
-        "Chưa có kết quả nào được thêm vào.",        # submission_list_display
-        [],                                         # submission_list_state
-        gr.Dropdown(choices=[], value=None),        # submission_list_selector
+        # --- 5. Cột Phải: Bảng điều khiển Nộp bài (2 outputs) ---
+        "",                                         # submission_text_editor
+        [],                                         # submission_list_state (reset state nội bộ)
+
+        # --- 6. Cột Phải: Vùng Xuất File (2 outputs) ---
         "",                                         # query_id_input
         None,                                       # submission_file_output
     )

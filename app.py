@@ -49,7 +49,15 @@ def connect_event_listeners(ui_components):
     # 1.3. Chọn một ảnh trong Gallery -> Kích hoạt Trạm Phân tích
     # State ẩn mới để lưu full_video_path
     full_video_path_state = gr.State()
-    analysis_outputs = [ui["selected_image_display"], ui["video_player"], ui["selected_candidate_for_submission"], ui["frame_calculator_video_id"], ui["frame_calculator_timestamp"], full_video_path_state]
+    analysis_outputs = [
+        ui["selected_image_display"], 
+        ui["video_player"], 
+        ui["analysis_display_html"], # Thêm lại output này
+        ui["selected_candidate_for_submission"], 
+        ui["frame_calculator_video_id"], 
+        ui["frame_calculator_time_input"], # <-- TÊN ĐÚNG
+        full_video_path_state
+    ]
     ui["results_gallery"].select(fn=handlers.on_gallery_select, inputs=[ui["response_state"], ui["current_page_state"]], outputs=analysis_outputs)
     
     # 1.4. Nút Mở Video Gốc
@@ -130,26 +138,28 @@ def connect_event_listeners(ui_components):
     
     # 3.5. Nút Xóa Tất cả (Toàn bộ hệ thống)
     clear_all_outputs = [
-        # Tab Mắt Thần
-        ui["results_gallery"], ui["status_output"], ui["response_state"], ui["page_info_display"], 
-        ui["gallery_items_state"], ui["current_page_state"],
+        # 1. Tab Mắt Thần
+        ui["results_gallery"], ui["status_output"], ui["response_state"],
+        ui["page_info_display"], ui["gallery_items_state"], ui["current_page_state"],
         
-        # Tab Tai Thính
+        # 2. Tab Tai Thính
         ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"],
         ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_video_player"],
         ui["transcript_results_state"], ui["full_transcript_display"], ui["transcript_keyframe_display"],
         
-        # Cột Phải - Trạm Phân tích Visual
-        ui["selected_image_display"], ui["video_player"], ui["selected_candidate_for_submission"],
+        # 3. Cột Phải - Trạm Phân tích Visual
+        ui["selected_image_display"], ui["video_player"], ui["analysis_display_html"],
+        ui["selected_candidate_for_submission"],
         
-        # Cột Phải - Công cụ tính toán
-        ui["frame_calculator_video_id"], ui["frame_calculator_timestamp"], ui["frame_calculator_output"],
+        # 4. Cột Phải - Công cụ tính toán
+        ui["frame_calculator_video_id"], ui["frame_calculator_time_input"], ui["frame_calculator_output"],
         
-        # Cột Phải - Vùng Nộp bài
-        ui["submission_list_display"], ui["submission_list_state"], ui["submission_list_selector"],
+        # 5. Cột Phải - Bảng điều khiển Nộp bài
+        ui["submission_text_editor"], ui["submission_list_state"],
+        
+        # 6. Cột Phải - Vùng Xuất File
         ui["query_id_input"], ui["submission_file_output"]
     ]
-    # Bây giờ, danh sách này chỉ chứa các component object, không còn string lỗi.
     ui["clear_button"].click(fn=handlers.clear_all, inputs=None, outputs=clear_all_outputs, queue=False)
 
 # === Xây dựng UI và truyền hàm kết nối sự kiện vào ===
