@@ -4,7 +4,7 @@ import numpy as np
 import time
 import os
 import traceback
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 # Local imports from other project files
 from config import ITEMS_PER_PAGE, MAX_SUBMISSION_RESULTS, VIDEO_BASE_PATH
