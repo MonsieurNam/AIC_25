@@ -4,6 +4,22 @@ from typing import List, Dict, Any
 import os
 import json # <-- THÊM MỚI
 
+def format_submission_list_to_csv_string(submission_list: List[Dict]) -> str:
+    """
+    Chuyển danh sách nộp bài thành một chuỗi CSV để hiển thị và chỉnh sửa.
+    """
+    if not submission_list:
+        return "" # Trả về chuỗi rỗng nếu không có gì
+    
+    # Tái sử dụng logic định dạng đã có để tạo DataFrame
+    df = format_list_for_submission(submission_list)
+    
+    if df.empty:
+        return ""
+        
+    # Chuyển DataFrame thành chuỗi CSV, không có header và index
+    csv_string = df.to_csv(header=False, index=False)
+    return csv_string
 
 def _load_fps_map(path="/kaggle/input/stage1/video_fps_map.json") -> Dict[str, float]:
     """

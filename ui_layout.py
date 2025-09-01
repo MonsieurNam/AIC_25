@@ -1,6 +1,6 @@
 import gradio as gr
 
-# --- CÁC ĐOẠN MÃ GIAO DIỆN TĨNH (Không đổi, chỉ cập nhật tiêu đề) ---
+# --- ĐỊNH NGHĨA CÁC ĐOẠN MÃ GIAO DIỆN TĨNH ---
 custom_css = """
 /* Ẩn footer mặc định của Gradio */
 footer {display: none !important}
@@ -44,17 +44,17 @@ app_footer_html = """
 def build_ui(connect_events_fn):
     """
     Xây dựng toàn bộ giao diện người dùng và kết nối các sự kiện.
-    PHIÊN BẢN V2: Cấu trúc Tabs "Mắt Thần" và "Tai Thính".
+    PHIÊN BẢN NÂNG CẤP "THẦN TỐC".
     """
     with gr.Blocks(theme=gr.themes.Soft(), css=custom_css, title="🚀 AIC25 Search Fleet") as app:
         
-        # --- Khai báo tất cả States cần thiết cho toàn bộ App ---
+        # --- Khai báo States ---
         response_state = gr.State()
         gallery_items_state = gr.State([])
         current_page_state = gr.State(1)
         submission_list_state = gr.State([])
         selected_candidate_for_submission = gr.State()
-        transcript_results_state = gr.State() # State cho kết quả tìm kiếm transcript
+        transcript_results_state = gr.State()
 
         gr.HTML(app_header_html)
         
@@ -72,7 +72,6 @@ def build_ui(connect_events_fn):
                         num_results = gr.Slider(minimum=50, maximum=1000, value=200, step=50, label="📊 Số lượng kết quả visual tối đa")
                         
                         with gr.Accordion("⚙️ Tùy chỉnh Reranking Nâng cao", open=False):
-                            # ... (giữ nguyên các slider cũ)
                             w_clip_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.4, step=0.05, label="w_clip (Thị giác)")
                             w_obj_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.3, step=0.05, label="w_obj (Đối tượng)")
                             w_semantic_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.3, step=0.05, label="w_semantic (Ngữ nghĩa)")
@@ -88,7 +87,7 @@ def build_ui(connect_events_fn):
 
                     # --- TAB 2: TAI THÍNH (TRANSCRIPT INTEL) ---
                     with gr.TabItem("👂 Tai Thính (Transcript Intel)"):
-                        gr.Markdown("### 1. Điều tra bằng Lời thoại (Hỗ trợ tìm kiếm lồng)")
+                        gr.Markdown("### 1. Điều tra bằng Lời thoại")
                         transcript_query_1 = gr.Textbox(label="🔍 Tìm kiếm trong toàn bộ transcript...", placeholder="Ví dụ: biến đổi khí hậu")
                         transcript_query_2 = gr.Textbox(label="...và trong kết quả đó, tìm tiếp...", placeholder="Ví dụ: Việt Nam")
                         transcript_query_3 = gr.Textbox(label="...cuối cùng, lọc theo...", placeholder="Ví dụ: giải pháp")
@@ -96,8 +95,12 @@ def build_ui(connect_events_fn):
                             transcript_search_button = gr.Button("🎙️ Bắt đầu Điều tra", variant="primary")
                             transcript_clear_button = gr.Button("🧹 Xóa bộ lọc")
                         
-                        gr.Markdown("### 2. Kết quả Điều tra")
+                        gr.Markdown("### 2. Kết quả Điều tra & Nộp bài")
                         transcript_results_count = gr.Markdown("Tìm thấy: 0 kết quả.")
+                        with gr.Row():
+                             add_transcript_top_button = gr.Button("➕ Thêm kết quả đã chọn vào Top 1", variant="primary")
+                             add_transcript_bottom_button = gr.Button("➕ Thêm kết quả đã chọn vào cuối")
+                        
                         transcript_results_df = gr.DataFrame(
                             headers=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"],
                             datatype=["str", "number", "str", "str"],
@@ -106,30 +109,18 @@ def build_ui(connect_events_fn):
                             column_widths=["15%", "15%", "60%", "0%"]
                         )
                         
-                        # ==========================================================
-                        # === BƯỚC 2: XÂY DỰNG TRẠM PHÂN TÍCH LỜI THOẠI ===
-                        # ==========================================================
                         gr.Markdown("### 3. Trạm Phân tích Lời thoại")
                         with gr.Row():
-                            # Cột trái cho media (video và ảnh)
                             with gr.Column(scale=1):
-                                transcript_video_player = gr.Video(
-                                    label="🎬 Video gốc (tua đến thời điểm được chọn)", 
-                                    interactive=False
-                                )
-                                transcript_keyframe_display = gr.Image(
-                                    label="🖼️ Keyframe tương ứng", 
-                                    type="filepath"
-                                )
-                            # Cột phải cho text (toàn bộ transcript)
+                                transcript_video_player = gr.Video(label="🎬 Video gốc (tua đến thời điểm được chọn)", interactive=False)
+                                transcript_keyframe_display = gr.Image(label="🖼️ Keyframe tương ứng", type="filepath")
                             with gr.Column(scale=2):
                                 full_transcript_display = gr.Textbox(
                                     label="📜 Toàn bộ Transcript của Video",
-                                    lines=20, # Tăng chiều cao để đọc được nhiều hơn
-                                    interactive=False,
+                                    lines=20, interactive=False,
                                     placeholder="Click vào một dòng kết quả ở trên để xem toàn bộ lời thoại của video đó tại đây..."
                                 )
-
+            
             # --- CỘT PHẢI (scale=1): TRẠM PHÂN TÍCH & NỘP BÀI (DÙNG CHUNG) ---
             with gr.Column(scale=1):
                 gr.Markdown("### 🔬 Trạm Phân tích & Nộp bài")
@@ -138,28 +129,36 @@ def build_ui(connect_events_fn):
                     selected_image_display = gr.Image(label="Ảnh Keyframe Được chọn", type="filepath")
                     video_player = gr.Video(label="🎬 Clip 30 giây", autoplay=True)
                     view_full_video_button = gr.Button("🎬 Mở Video Gốc (Toàn bộ)")
-
-                with gr.Accordion("📋 Vùng Nộp bài", open=True):
                     with gr.Row():
                         add_top_button = gr.Button("➕ Thêm vào Top 1", variant="primary")
                         add_bottom_button = gr.Button("➕ Thêm vào cuối")
-                    submission_list_display = gr.Textbox(label="Thứ tự Nộp bài (Top 1 ở trên cùng)", lines=8, interactive=False, value="Chưa có kết quả nào.")
-                    submission_list_selector = gr.Dropdown(label="Chọn mục để thao tác", choices=[], interactive=True)
-                    with gr.Row():
-                        move_up_button = gr.Button("⬆️ Lên")
-                        move_down_button = gr.Button("⬇️ Xuống")
-                        remove_button = gr.Button("🗑️ Xóa", variant="stop")
-                    clear_submission_button = gr.Button("💥 Xóa toàn bộ danh sách")
 
-                with gr.Accordion("🧮 Công cụ Tính toán Frame", open=False):
+                with gr.Accordion("📋 Bảng điều khiển Nộp bài", open=True):
+                    gr.Markdown("Nội dung dưới đây sẽ được lưu vào file CSV. **Bạn có thể chỉnh sửa trực tiếp.**")
+                    submission_text_editor = gr.Textbox(
+                        label="Nội dung File Nộp bài (Định dạng CSV)",
+                        lines=15,
+                        interactive=True,
+                        placeholder="Thêm kết quả từ các tab tìm kiếm hoặc dán trực tiếp vào đây..."
+                    )
+                    refresh_submission_button = gr.Button("🔄 Cập nhật Bảng điều khiển từ Danh sách")
+
+                with gr.Accordion("🧮 Máy tính Thời gian & Frame", open=False):
                     frame_calculator_video_id = gr.Textbox(label="Video ID", placeholder="Tự động điền khi chọn ảnh...")
-                    frame_calculator_timestamp = gr.Number(label="Timestamp (giây)", value=0)
+                    frame_calculator_time_input = gr.Textbox(
+                        label="Nhập Thời gian", 
+                        placeholder="Ví dụ: 123.45 (giây) hoặc 2:03.45 (phút:giây)"
+                    )
                     frame_calculator_button = gr.Button("Tính toán Frame Index")
-                    frame_calculator_output = gr.Textbox(label="✅ Frame Index để nộp bài", interactive=False)
+                    frame_calculator_output = gr.Textbox(
+                        label="✅ Kết quả Frame Index (để copy)", 
+                        interactive=False, 
+                        show_copy_button=True
+                    )
 
                 with gr.Accordion("💾 Xuất File Nộp bài", open=True):
                     query_id_input = gr.Textbox(label="Nhập Query ID", placeholder="Ví dụ: query_01")
-                    submission_button = gr.Button("💾 Tạo File CSV Nộp bài")
+                    submission_button = gr.Button("💾 Tạo File CSV (từ nội dung đã sửa)")
                     submission_file_output = gr.File(label="Tải file nộp bài tại đây")
         
         gr.HTML(app_footer_html)
@@ -172,12 +171,10 @@ def build_ui(connect_events_fn):
             "selected_candidate_for_submission": selected_candidate_for_submission,
             "transcript_results_state": transcript_results_state,
             
-            # Tab Mắt Thần - Inputs
+            # Tab Mắt Thần
             "query_input": query_input, "search_button": search_button, "num_results": num_results,
             "w_clip_slider": w_clip_slider, "w_obj_slider": w_obj_slider, "w_semantic_slider": w_semantic_slider,
             "lambda_mmr_slider": lambda_mmr_slider, "clear_button": clear_button,
-            
-            # Tab Mắt Thần - Outputs & Display
             "status_output": status_output, "prev_page_button": prev_page_button,
             "page_info_display": page_info_display, "next_page_button": next_page_button,
             "results_gallery": results_gallery,
@@ -186,20 +183,20 @@ def build_ui(connect_events_fn):
             "transcript_query_1": transcript_query_1, "transcript_query_2": transcript_query_2,
             "transcript_query_3": transcript_query_3, "transcript_search_button": transcript_search_button,
             "transcript_clear_button": transcript_clear_button, "transcript_results_count": transcript_results_count,
-            "transcript_results_df": transcript_results_df, "transcript_video_player": transcript_video_player,"transcript_keyframe_display": transcript_keyframe_display,"full_transcript_display": full_transcript_display,       
+            "add_transcript_top_button": add_transcript_top_button, "add_transcript_bottom_button": add_transcript_bottom_button,
+            "transcript_results_df": transcript_results_df, "transcript_video_player": transcript_video_player,
+            "transcript_keyframe_display": transcript_keyframe_display, "full_transcript_display": full_transcript_display,
             
-            # Cột Phải - Trạm Phân tích
+            # Cột Phải - Trạm Phân tích Visual
             "selected_image_display": selected_image_display, "video_player": video_player,
-            "view_full_video_button": view_full_video_button,
+            "view_full_video_button": view_full_video_button, "add_top_button": add_top_button,
+            "add_bottom_button": add_bottom_button,
             
-            # Cột Phải - Vùng Nộp bài
-            "add_top_button": add_top_button, "add_bottom_button": add_bottom_button,
-            "submission_list_display": submission_list_display, "submission_list_selector": submission_list_selector,
-            "move_up_button": move_up_button, "move_down_button": move_down_button, "remove_button": remove_button,
-            "clear_submission_button": clear_submission_button,
+            # Cột Phải - Bảng điều khiển Nộp bài
+            "submission_text_editor": submission_text_editor, "refresh_submission_button": refresh_submission_button,
             
-            # Cột Phải - Công cụ Tính toán
-            "frame_calculator_video_id": frame_calculator_video_id, "frame_calculator_timestamp": frame_calculator_timestamp,
+            # Cột Phải - Máy tính Thời gian
+            "frame_calculator_video_id": frame_calculator_video_id, "frame_calculator_time_input": frame_calculator_time_input,
             "frame_calculator_button": frame_calculator_button, "frame_calculator_output": frame_calculator_output,
             
             # Cột Phải - Vùng Xuất File

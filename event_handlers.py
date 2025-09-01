@@ -1,3 +1,4 @@
+from io import StringIO
 import gradio as gr
 import pandas as pd
 import numpy as np
@@ -5,13 +6,14 @@ import time
 import os
 import traceback
 from typing import Dict, Any, List, Optional
-
+import json
 # Local imports from other project files
 from config import ITEMS_PER_PAGE, MAX_SUBMISSION_RESULTS, VIDEO_BASE_PATH, TRANSCRIPTS_JSON_DIR 
 from ui_helpers import create_detailed_info_html, format_submission_list_for_display
 from search_core.task_analyzer import TaskType
-from utils.formatting import format_list_for_submission, format_results_for_mute_gallery
+from utils.formatting import format_list_for_submission, format_results_for_mute_gallery, format_submission_list_to_csv_string 
 from utils import create_video_segment, generate_submission_file
+import re 
 
 # ==============================================================================
 # === GỌNG KÌM 1: HANDLERS CHO TAB "MẮT THẦN" (VISUAL SCOUT) ===
@@ -227,10 +229,12 @@ def get_full_video_path_for_button(video_path):
 def add_to_submission_list(
     submission_list: list, candidate: Dict, response_state: Dict, position: str
 ):
-    """Thêm ứng viên vào danh sách nộp bài (Không thay đổi logic)."""
+    """Thêm ứng viên và cập nhật cả danh sách hiển thị và text editor."""
     if not candidate:
         gr.Warning("Chưa có ứng viên nào được chọn để thêm!")
-        return format_submission_list_for_display(submission_list), submission_list, gr.Dropdown()
+        text_display = format_submission_list_for_display(submission_list)
+        csv_editor_content = format_submission_list_to_csv_string(submission_list)
+        return text_display, submission_list, gr.Dropdown(), csv_editor_content
 
     task_type = response_state.get("task_type")
     item_to_add = {**candidate, 'task_type': task_type}
@@ -245,8 +249,10 @@ def add_to_submission_list(
             submission_list.append(item_to_add)
         gr.Success(f"Đã thêm kết quả vào {'đầu' if position == 'top' else 'cuối'} danh sách!")
 
-    new_choices = [f"{i+1}. {item.get('keyframe_id') or 'TRAKE (' + str(item.get('video_id')) + ')'}" for i, item in enumerate(submission_list)]
-    return format_submission_list_for_display(submission_list), submission_list, gr.Dropdown(choices=new_choices, value=None)
+    text_display = format_submission_list_for_display(submission_list)
+    csv_editor_content = format_submission_list_to_csv_string(submission_list)
+    new_choices = [f"{i+1}. {item.get('keyframe_id') or 'TRAKE'}" for i, item in enumerate(submission_list)]
+    return text_display, submission_list, gr.Dropdown(choices=new_choices), csv_editor_content
 
 def modify_submission_list(
     submission_list: list, selected_item_index_str: str, action: str
@@ -272,39 +278,96 @@ def modify_submission_list(
     new_choices = [f"{i+1}. {item.get('keyframe_id') or 'TRAKE (' + str(item.get('video_id')) + ')'}" for i, item in enumerate(submission_list)]
     return format_submission_list_for_display(submission_list), submission_list, gr.Dropdown(choices=new_choices, value=None)
     
-def calculate_frame_number(video_id: str, timestamp: float, fps_map: dict):
+def calculate_frame_number(video_id: str, time_input: str, fps_map: dict):
     """
-    Tính toán số thứ tự frame dựa trên video_id và timestamp.
+    Tính toán số thứ tự frame từ input có thể là giây hoặc "phút:giây".
     """
-    if not video_id or timestamp is None:
-        return "Vui lòng nhập đủ thông tin."
+    if not video_id or not time_input:
+        return "Vui lòng nhập Video ID và Thời gian."
     
-    fps = fps_map.get(video_id, 30.0) # Sử dụng FPS mặc định nếu không tìm thấy
-    frame_number = round(float(timestamp) * fps)
+    timestamp = 0.0
+    try:
+        time_input_str = str(time_input).strip()
+        match = re.match(r'(\d+)\s*:\s*(\d+(\.\d+)?)', time_input_str)
+        if match:
+            minutes = int(match.group(1))
+            seconds = float(match.group(2))
+            timestamp = minutes * 60 + seconds
+            gr.Info(f"Đã chuyển đổi '{time_input_str}' thành {timestamp:.2f} giây.")
+        else:
+            timestamp = float(time_input_str)
+    except (ValueError, TypeError):
+        return f"Lỗi: Định dạng thời gian '{time_input}' không hợp lệ."
+
+    fps = fps_map.get(video_id, 30.0)
+    frame_number = round(timestamp * fps)
     
-    gr.Info(f"Đã tính toán: {video_id} @ {timestamp}s, FPS={fps} -> Frame #{frame_number}")
     return str(frame_number)
 
-def handle_submission(submission_list: list, query_id: str):
+def add_transcript_result_to_submission(
+    submission_list: list, 
+    results_state: pd.DataFrame, 
+    selected_index: gr.SelectData,
+    position: str
+):
     """
-    Tạo file CSV nộp bài.
-    Logic bên trong đã được nâng cấp ở `formatting.py` nên hàm này không cần đổi.
+    Trích xuất thông tin từ dòng DataFrame được chọn và thêm vào danh sách nộp bài.
     """
-    if not submission_list:
-        gr.Warning("Danh sách nộp bài đang trống.")
+    if selected_index is None or results_state is None or results_state.empty:
+        gr.Warning("Vui lòng chọn một kết quả từ bảng transcript trước khi thêm!")
+        text_display = format_submission_list_for_display(submission_list)
+        csv_editor_content = format_submission_list_to_csv_string(submission_list)
+        return text_display, submission_list, gr.Dropdown(), csv_editor_content
+
+    try:
+        selected_row = results_state.iloc[selected_index.index[0]]
+        candidate = {
+            "video_id": selected_row['video_id'],
+            "timestamp": selected_row['timestamp'],
+            "keyframe_id": f"transcript_{selected_row['timestamp']:.2f}s",
+            "task_type": TaskType.KIS
+        }
+        # Tái sử dụng logic của hàm cũ
+        return add_to_submission_list(submission_list, candidate, {"task_type": TaskType.KIS}, position)
+    except (IndexError, KeyError) as e:
+        gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
+        text_display = format_submission_list_for_display(submission_list)
+        csv_editor_content = format_submission_list_to_csv_string(submission_list)
+        return text_display, submission_list, gr.Dropdown(), csv_editor_content
+        
+# === HÀM MỚI ===
+def prepare_submission_for_edit(submission_list: list):
+    """
+    Chuyển danh sách nộp bài thành một chuỗi CSV để người dùng có thể chỉnh sửa.
+    """
+    gr.Info("Đã đồng bộ hóa danh sách vào Bảng điều khiển.")
+    return format_submission_list_to_csv_string(submission_list)
+
+def handle_submission(submission_csv_text: str, query_id: str):
+    """
+    Tạo file CSV nộp bài từ nội dung text đã được chỉnh sửa.
+    """
+    if not submission_csv_text or not submission_csv_text.strip():
+        gr.Warning("Nội dung nộp bài đang trống.")
         return None
     if not query_id.strip():
         gr.Warning("Vui lòng nhập Query ID để tạo file.")
         return None
-        
-    submission_df = format_list_for_submission(submission_list, max_results=MAX_SUBMISSION_RESULTS)
-    if submission_df.empty:
-        gr.Warning("Không thể định dạng kết quả để nộp bài.")
+    
+    output_dir = "/kaggle/working/submissions"
+    os.makedirs(output_dir, exist_ok=True)
+    file_path = os.path.join(output_dir, f"{query_id}_submission.csv")
+    
+    try:
+        # Đảm bảo dữ liệu text là CSV hợp lệ trước khi ghi
+        pd.read_csv(StringIO(submission_csv_text), header=None)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(submission_csv_text.strip())
+        gr.Success(f"Đã tạo file nộp bài thành công từ nội dung đã sửa!")
+        return file_path
+    except Exception as e:
+        gr.Error(f"Lỗi định dạng CSV: {e}. Vui lòng kiểm tra lại nội dung trong Bảng điều khiển.")
         return None
-        
-    file_path = generate_submission_file(submission_df, query_id=query_id)
-    gr.Info(f"Đã tạo file nộp bài thành công: {os.path.basename(file_path)}")
-    return file_path
     
 def clear_submission_list():
     """Xóa toàn bộ danh sách nộp bài."""

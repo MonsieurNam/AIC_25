@@ -16,6 +16,7 @@ print("--- 🚀 Bắt đầu khởi chạy AIC25 Search Fleet ---")
 # --- Giai đoạn 1 & 2: Khởi tạo Backend và các Động cơ ---
 print("--- Giai đoạn 1/4 & 2/4: Đang tải thư viện và khởi tạo Backend... ---")
 backend_objects = initialize_backend()
+add_transcript_to_submission_with_backend = partial(handlers.add_transcript_result_to_submission)
 
 # --- Giai đoạn 3: Xây dựng Giao diện & Kết nối Logic ---
 print("--- Giai đoạn 3/4: Đang xây dựng giao diện và kết nối sự kiện... ---")
@@ -80,24 +81,54 @@ def connect_event_listeners(ui_components):
         inputs=[ui["transcript_results_state"]], 
         outputs=transcript_select_outputs
     )
+    # 2.4. Thêm kết quả từ Transcript vào danh sách nộp bài
+    transcript_add_inputs = [ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_results_df"]]
+    # === CẬP NHẬT OUTPUTS ĐỂ ĐỒNG BỘ EDITOR ===
+    transcript_add_outputs = [
+        ui["submission_list_display"], ui["submission_list_state"], 
+        ui["submission_list_selector"], ui["submission_text_editor"]
+    ]
+    ui["add_transcript_top_button"].click(
+        fn=add_transcript_to_submission_with_backend,
+        inputs=transcript_add_inputs + [gr.Textbox("top", visible=False)],
+        outputs=transcript_add_outputs
+    )
+    ui["add_transcript_bottom_button"].click(
+        fn=add_transcript_to_submission_with_backend,
+        inputs=transcript_add_inputs + [gr.Textbox("bottom", visible=False)],
+        outputs=transcript_add_outputs
+    )
 
     # === 3. SỰ KIỆN DÙNG CHUNG (CỘT PHẢI) ===
-    # 3.1. Vùng Nộp bài
-    submission_list_outputs = [ui["submission_list_display"], ui["submission_list_state"], ui["submission_list_selector"]]
-    add_inputs = [ui["submission_list_state"], ui["selected_candidate_for_submission"], ui["response_state"]]
-    ui["add_top_button"].click(fn=handlers.add_to_submission_list, inputs=add_inputs + [gr.Textbox("top", visible=False)], outputs=submission_list_outputs)
-    ui["add_bottom_button"].click(fn=handlers.add_to_submission_list, inputs=add_inputs + [gr.Textbox("bottom", visible=False)], outputs=submission_list_outputs)
-    ui["clear_submission_button"].click(fn=handlers.clear_submission_list, inputs=[], outputs=submission_list_outputs)
-    # ... (các nút move/remove giữ nguyên)
+    # 3.1. Trạm Phân tích Visual
+    add_visual_inputs = [ui["submission_list_state"], ui["selected_candidate_for_submission"], ui["response_state"]]
+    # === CẬP NHẬT OUTPUTS ĐỂ ĐỒNG BỘ EDITOR ===
+    add_visual_outputs = [
+        ui["submission_list_display"], ui["submission_list_state"],
+        ui["submission_list_selector"], ui["submission_text_editor"]
+    ]
+    ui["add_top_button"].click(fn=handlers.add_to_submission_list, inputs=add_visual_inputs + [gr.Textbox("top", visible=False)], outputs=add_visual_outputs)
+    ui["add_bottom_button"].click(fn=handlers.add_to_submission_list, inputs=add_visual_inputs + [gr.Textbox("bottom", visible=False)], outputs=add_visual_outputs)
 
-    # 3.2. Công cụ Tính toán Frame
-    calc_inputs = [ui["frame_calculator_video_id"], ui["frame_calculator_timestamp"]]
+    # 3.2. Bảng điều khiển Nộp bài
+    ui["refresh_submission_button"].click(
+        fn=handlers.prepare_submission_for_edit,
+        inputs=[ui["submission_list_state"]],
+        outputs=[ui["submission_text_editor"]]
+    )
+
+    # 3.3. Máy tính Thời gian & Frame
+    calc_inputs = [ui["frame_calculator_video_id"], ui["frame_calculator_time_input"]]
     ui["frame_calculator_button"].click(fn=calculate_frame_with_backend, inputs=calc_inputs, outputs=[ui["frame_calculator_output"]])
 
-    # 3.3. Nút Xuất File CSV
-    ui["submission_button"].click(fn=handlers.handle_submission, inputs=[ui["submission_list_state"], ui["query_id_input"]], outputs=[ui["submission_file_output"]])
-
-    # 3.4. Nút Xóa Tất cả (Toàn bộ hệ thống)
+    # 3.4. Nút Xuất File CSV
+    ui["submission_button"].click(
+        fn=handlers.handle_submission,
+        inputs=[ui["submission_text_editor"], ui["query_id_input"]], 
+        outputs=[ui["submission_file_output"]]
+    )
+    
+    # 3.5. Nút Xóa Tất cả (Toàn bộ hệ thống)
     clear_all_outputs = [
         # Tab Mắt Thần
         ui["results_gallery"], ui["status_output"], ui["response_state"], ui["page_info_display"], 
