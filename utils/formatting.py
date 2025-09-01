@@ -5,7 +5,7 @@ import os
 import json # <-- THÊM MỚI
 
 
-def _load_fps_map(path="/kaggle/working/video_fps_map.json") -> Dict[str, float]:
+def _load_fps_map(path="/kaggle/input/stage1/video_fps_map.json") -> Dict[str, float]:
     """
     Tải và cache bản đồ FPS. Chỉ được gọi một lần.
     """

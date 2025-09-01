@@ -40,7 +40,7 @@ def initialize_backend():
     # --- 3. Tải Bản đồ FPS (Submission Engine Prerequisite) ---
     print("--- 3/3: Tải Bản đồ FPS... ---")
     fps_map = {}
-    fps_map_path = "/kaggle/working/video_fps_map.json"
+    fps_map_path = "/kaggle/input/stage1/video_fps_map.json"
     if os.path.exists(fps_map_path):
         try:
             with open(fps_map_path, 'r') as f:
