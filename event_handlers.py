@@ -113,9 +113,9 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
         timestamp = selected_row['timestamp']
         keyframe_path = selected_row['keyframe_path']
         video_path = os.path.join(VIDEO_BASE_PATH, f"{video_id}.mp4")
-        video_update = gr.Video.update(value=None)
+        video_output = gr.Video.update(value=None)
         if os.path.exists(video_path):
-            video_update = gr.Video.update(value=video_path, start_time=timestamp)
+            video_output = gr.Video(value=video_path, start_time=timestamp)
         else:
             gr.Warning(f"Không tìm thấy file video: {video_path}")
         full_transcript_text = f"Đang tìm transcript cho video {video_id}..."
@@ -127,7 +127,7 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
         else:
             full_transcript_text = f"Lỗi: Không tìm thấy file transcript tại: {transcript_json_path}"
         
-        return video_update, full_transcript_text, keyframe_path
+        return video_output, full_transcript_text, keyframe_path
     except (IndexError, KeyError) as e:
         gr.Error(f"Lỗi khi xử lý lựa chọn: {e}")
         return None, "Có lỗi xảy ra khi xử lý lựa chọn của bạn.", None
