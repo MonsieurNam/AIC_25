@@ -61,7 +61,7 @@ def build_ui(connect_events_fn):
         transcript_results_state = gr.State()
 
         gr.HTML(app_header_html)
-        
+        transcript_selected_index_state = gr.State()
         with gr.Row(variant='panel'):
             # --- CỘT TRÁI (scale=2): KHU VỰC TÌM KIẾM CHÍNH ---
             with gr.Column(scale=2):
@@ -158,7 +158,10 @@ def build_ui(connect_events_fn):
             "transcript_clear_button": transcript_clear_button, "transcript_results_count": transcript_results_count,
             "add_transcript_top_button": add_transcript_top_button, "add_transcript_bottom_button": add_transcript_bottom_button,
             "transcript_results_df": transcript_results_df, "transcript_video_player": transcript_video_player,
-            "transcript_keyframe_display": transcript_keyframe_display, "full_transcript_display": full_transcript_display,
+            "transcript_keyframe_display": transcript_keyframe_display, 
+            "transcript_selected_index_state": transcript_selected_index_state,
+
+            "full_transcript_display": full_transcript_display,
             # Cột Phải - Trạm Phân tích Visual
             "selected_image_display": selected_image_display, "video_player": video_player,
             "analysis_display_html": analysis_display_html,

@@ -113,8 +113,11 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
         timestamp = selected_row['timestamp']
         keyframe_path = selected_row['keyframe_path']
         video_path = os.path.join(VIDEO_BASE_PATH, f"{video_id}.mp4")
-        video_output = gr.Video(value=video_path, start_time=timestamp) if os.path.exists(video_path) else None
-        
+        video_update = gr.Video.update(value=None)
+        if os.path.exists(video_path):
+            video_update = gr.Video.update(value=video_path, start_time=timestamp)
+        else:
+            gr.Warning(f"Không tìm thấy file video: {video_path}")
         full_transcript_text = f"Đang tìm transcript cho video {video_id}..."
         transcript_json_path = os.path.join(TRANSCRIPTS_JSON_DIR, f"{video_id}.json")
         if os.path.exists(transcript_json_path):
@@ -124,7 +127,7 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
         else:
             full_transcript_text = f"Lỗi: Không tìm thấy file transcript tại: {transcript_json_path}"
         
-        return video_output, full_transcript_text, keyframe_path
+        return video_update, full_transcript_text, keyframe_path
     except (IndexError, KeyError) as e:
         gr.Error(f"Lỗi khi xử lý lựa chọn: {e}")
         return None, "Có lỗi xảy ra khi xử lý lựa chọn của bạn.", None
@@ -174,17 +177,29 @@ def add_to_submission_list(submission_list: list, candidate: Dict, response_stat
         gr.Warning(f"Danh sách đã đạt giới hạn {MAX_SUBMISSION_RESULTS} kết quả.")
     return submission_list, format_submission_list_to_csv_string(submission_list)
 
-def add_transcript_result_to_submission(submission_list: list, results_state: pd.DataFrame, selected_index: gr.SelectData, position: str):
-    """Thêm ứng viên từ Transcript Intel và cập nhật editor."""
+def add_transcript_result_to_submission(
+    submission_list: list, 
+    results_state: pd.DataFrame, 
+    selected_index: int, # <-- NHẬN VÀO CHỈ SỐ TỪ STATE
+    position: str
+):
+    """
+    Thêm kết quả từ transcript vào danh sách, sử dụng chỉ số đã được lưu.
+    """
     if selected_index is None or results_state is None or results_state.empty:
         gr.Warning("Vui lòng chọn một kết quả từ bảng transcript trước khi thêm!")
         return submission_list, format_submission_list_to_csv_string(submission_list)
+
     try:
-        selected_row = results_state.iloc[selected_index.index[0]]
-        candidate = {"video_id": selected_row['video_id'], "timestamp": selected_row['timestamp'], "keyframe_id": f"transcript_{selected_row['timestamp']:.2f}s"}
+        # Sử dụng chỉ số đã lưu để lấy đúng hàng
+        selected_row = results_state.iloc[selected_index]
+        candidate = {
+            "video_id": selected_row['video_id'], "timestamp": selected_row['timestamp'],
+            "keyframe_id": f"transcript_{selected_row['timestamp']:.2f}s", "task_type": TaskType.KIS
+        }
         return add_to_submission_list(submission_list, candidate, {"task_type": TaskType.KIS}, position)
     except (IndexError, KeyError) as e:
-        gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
+        gr.Error(f"Lỗi khi thêm kết quả transcript: {e}")
         return submission_list, format_submission_list_to_csv_string(submission_list)
 
 def prepare_submission_for_edit(submission_list: list):
