@@ -24,6 +24,10 @@ video { border-radius: 12px !important; }
 ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%); }
+#transcript-dataframe {
+    height: 400px !important;       /* Ấn định chiều cao cố định */
+    overflow-y: auto !important;  /* Bật thanh cuộn dọc khi nội dung vượt quá */
+}
 """
 
 app_header_html = """
@@ -97,7 +101,7 @@ def build_ui(connect_events_fn):
                         with gr.Row():
                              add_transcript_top_button = gr.Button("➕ Thêm kết quả đã chọn vào Top 1", variant="primary")
                              add_transcript_bottom_button = gr.Button("➕ Thêm kết quả đã chọn vào cuối")
-                        transcript_results_df = gr.DataFrame(headers=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"], datatype=["str", "number", "str", "str"], row_count=10, col_count=(4, "fixed"), wrap=True, interactive=True, visible=True, column_widths=["15%", "15%", "60%", "0%"], height=400)
+                        transcript_results_df = gr.DataFrame(headers=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"], datatype=["str", "number", "str", "str"], row_count=10, col_count=(4, "fixed"), wrap=True, interactive=True, visible=True, column_widths=["15%", "15%", "60%", "0%"], elem_id="transcript_dataframe")
                         gr.Markdown("### 3. Trạm Phân tích Lời thoại")
                         with gr.Row():
                             with gr.Column(scale=1):
