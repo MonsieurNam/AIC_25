@@ -86,17 +86,42 @@ def connect_event_listeners(ui_components):
 
     # 3.4. Nút Xóa Tất cả (Toàn bộ hệ thống)
     clear_all_outputs = [
-        # Tab Mắt Thần
-        ui["results_gallery"], ui["status_output"], ui["response_state"], "", ui["gallery_items_state"], ui["current_page_state"], ui["page_info_display"],
-        # Tab Tai Thính
-        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"], ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_video_player"], ui["transcript_results_state"],
-        # Trạm Phân tích
-        ui["selected_image_display"], ui["video_player"], ui["selected_candidate_for_submission"],
-        # Công cụ tính toán
-        ui["frame_calculator_video_id"], ui["frame_calculator_timestamp"], ui["frame_calculator_output"],
-        # Vùng Nộp bài
-        ui["submission_list_display"], ui["submission_list_state"], ui["submission_list_selector"], ui["query_id_input"], ui["submission_file_output"]
+        # --- Tab Mắt Thần (7 outputs) ---
+        ui["results_gallery"], 
+        ui["status_output"], 
+        ui["response_state"], 
+        ui["page_info_display"], 
+        ui["gallery_items_state"], 
+        ui["current_page_state"], 
+        
+        # --- Tab Tai Thính (6 outputs) ---
+        ui["transcript_query_1"], 
+        ui["transcript_query_2"], 
+        ui["transcript_query_3"], 
+        ui["transcript_results_count"], 
+        ui["transcript_results_df"], 
+        ui["transcript_video_player"], 
+        ui["transcript_results_state"],
+
+        # --- Cột Phải: Trạm Phân tích (4 outputs) ---
+        ui["selected_image_display"], 
+        ui["video_player"], 
+        ui["selected_candidate_for_submission"],
+        full_video_path_state, # Lấy từ khai báo ở trên
+
+        # --- Cột Phải: Công cụ tính toán (3 outputs) ---
+        ui["frame_calculator_video_id"], 
+        ui["frame_calculator_timestamp"], 
+        ui["frame_calculator_output"],
+
+        # --- Cột Phải: Vùng Nộp bài (5 outputs) ---
+        ui["submission_list_display"], 
+        ui["submission_list_state"], 
+        ui["submission_list_selector"], 
+        ui["query_id_input"], 
+        ui["submission_file_output"]
     ]
+    # Bây giờ, danh sách này chỉ chứa các component object, không còn string lỗi.
     ui["clear_button"].click(fn=handlers.clear_all, inputs=None, outputs=clear_all_outputs, queue=False)
 
 # === Xây dựng UI và truyền hàm kết nối sự kiện vào ===

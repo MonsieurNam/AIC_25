@@ -281,16 +281,44 @@ def clear_submission_list():
 # ==============================================================================
 
 def clear_all():
-    """Reset toàn bộ giao diện về trạng thái ban đầu."""
+    """
+    Reset toàn bộ giao diện về trạng thái ban đầu.
+    Trả về một tuple lớn chứa tất cả các giá trị mặc định.
+    """
+    # Giá trị trả về phải khớp 1-1 với danh sách `clear_all_outputs` trong app.py
     return (
-        # Tab Mắt Thần - Visual Scout
-        [], "", None, "", [], 1, "Trang 1 / 1",
-        # Tab Tai Thính - Transcript Intel
-        "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(), None,
-        # Trạm Phân tích
-        None, None, "", None,
-        # Công cụ tính toán
-        "", 0, "",
-        # Vùng Nộp bài
-        "Chưa có kết quả nào được thêm vào.", [], gr.Dropdown(choices=[], value=None), "", None
+        # --- Tab Mắt Thần (7 outputs) ---
+        [],                                         # results_gallery
+        "",                                         # status_output
+        None,                                       # response_state
+        "Trang 1 / 1",                              # page_info_display
+        [],                                         # gallery_items_state
+        1,                                          # current_page_state
+        
+        # --- Tab Tai Thính (6 outputs) ---
+        "",                                         # transcript_query_1
+        "",                                         # transcript_query_2
+        "",                                         # transcript_query_3
+        "Tìm thấy: 0 kết quả.",                      # transcript_results_count
+        pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), # transcript_results_df
+        None,                                       # transcript_video_player
+        None,                                       # transcript_results_state
+
+        # --- Cột Phải: Trạm Phân tích (4 outputs) ---
+        None,                                       # selected_image_display
+        None,                                       # video_player
+        None,                                       # selected_candidate_for_submission
+        None,                                       # full_video_path_state (State)
+
+        # --- Cột Phải: Công cụ tính toán (3 outputs) ---
+        "",                                         # frame_calculator_video_id
+        0,                                          # frame_calculator_timestamp
+        "",                                         # frame_calculator_output
+
+        # --- Cột Phải: Vùng Nộp bài (5 outputs) ---
+        "Chưa có kết quả nào được thêm vào.",        # submission_list_display
+        [],                                         # submission_list_state
+        gr.Dropdown(choices=[], value=None),        # submission_list_selector
+        "",                                         # query_id_input
+        None,                                       # submission_file_output
     )
