@@ -7,7 +7,7 @@ import traceback
 from typing import Dict, Any, List, Optional
 
 # Local imports from other project files
-from config import ITEMS_PER_PAGE, MAX_SUBMISSION_RESULTS, VIDEO_BASE_PATH
+from config import ITEMS_PER_PAGE, MAX_SUBMISSION_RESULTS, VIDEO_BASE_PATH, TRANSCRIPTS_JSON_DIR 
 from ui_helpers import create_detailed_info_html, format_submission_list_for_display
 from search_core.task_analyzer import TaskType
 from utils.formatting import format_list_for_submission, format_results_for_mute_gallery
@@ -102,36 +102,71 @@ def handle_transcript_search(query1: str, query2: str, query3: str, transcript_s
     
     return count_str, display_df, results # Trả về full results cho state
 
-def clear_transcript_search():
-    """Xóa các ô tìm kiếm và kết quả của Tab Tai Thính."""
-    return "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), None
-
 def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
     """
     Xử lý khi người dùng chọn một dòng trong bảng kết quả transcript.
-    Sẽ tải và tua video đến đúng thời điểm.
+    Sẽ tải và tua video, hiển thị keyframe, và hiển thị toàn bộ transcript.
     """
+    # Giá trị trả về mặc định khi có lỗi hoặc không có lựa chọn
+    empty_return = None, "Click vào một dòng kết quả để xem chi tiết.", None
+    
     if evt.value is None or results_state is None or results_state.empty:
-        return None
+        return empty_return
     
     try:
-        # evt.index[0] là chỉ số của dòng được chọn
+        # Lấy thông tin từ dòng được chọn trong DataFrame state
         selected_row = results_state.iloc[evt.index[0]]
         video_id = selected_row['video_id']
         timestamp = selected_row['timestamp']
+        keyframe_path = selected_row['keyframe_path']
         
-        # Suy ra đường dẫn video từ video_id (cần cấu hình VIDEO_BASE_PATH)
+        # --- 1. Chuẩn bị đầu ra cho Video Player ---
         video_path = os.path.join(VIDEO_BASE_PATH, f"{video_id}.mp4")
+        video_output = None
+        if os.path.exists(video_path):
+            # Tạo component gr.Video với giá trị mới để tua đến đúng thời điểm
+            video_output = gr.Video(value=video_path, start_time=timestamp)
+        else:
+            gr.Warning(f"Không tìm thấy file video: {video_path}")
 
-        if not os.path.exists(video_path):
-            gr.Error(f"Không tìm thấy file video: {video_path}")
-            return None
+        # --- 2. Chuẩn bị đầu ra cho Full Transcript Display ---
+        full_transcript_text = f"Đang tìm transcript cho video {video_id}..."
+        transcript_json_path = os.path.join(TRANSCRIPTS_JSON_DIR, f"{video_id}.json")
         
-        # Sử dụng tính năng start_time của gr.Video để tua đến đúng đoạn
-        return gr.Video(value=video_path, start_time=timestamp)
+        if not os.path.exists(transcript_json_path):
+            full_transcript_text = f"Lỗi: Không tìm thấy file transcript tại đường dẫn:\n{transcript_json_path}"
+        else:
+            try:
+                with open(transcript_json_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    # Lấy text từ key "text", strip để đảm bảo sạch sẽ
+                    full_transcript_text = data.get("text", "Lỗi: File JSON không chứa key 'text' hoặc có định dạng không đúng.").strip()
+            except Exception as e:
+                full_transcript_text = f"Lỗi khi đọc hoặc phân tích file JSON '{transcript_json_path}': {e}"
+        
+        # --- 3. Trả về tất cả các giá trị cho các component output ---
+        # Thứ tự phải khớp với danh sách `outputs` trong app.py
+        return video_output, full_transcript_text, keyframe_path
+
     except (IndexError, KeyError) as e:
         gr.Error(f"Lỗi khi xử lý lựa chọn: {e}")
-        return None
+        return None, "Có lỗi xảy ra khi xử lý lựa chọn của bạn.", None
+
+# === HÀM ĐƯỢC CẬP NHẬT ĐỂ RESET CÁC COMPONENT MỚI ===
+def clear_transcript_search():
+    """Xóa các ô tìm kiếm và kết quả của Tab Tai Thính."""
+    # Phải trả về đủ giá trị cho tất cả các output của nút clear
+    return (
+        "", # transcript_query_1
+        "", # transcript_query_2
+        "", # transcript_query_3
+        "Tìm thấy: 0 kết quả.", # transcript_results_count
+        pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), # transcript_results_df
+        None, # transcript_results_state
+        None, # transcript_video_player
+        "",   # full_transcript_display
+        None  # transcript_keyframe_display
+    )
 
 # ==============================================================================
 # === HANDLERS DÙNG CHUNG (PHÂN TÍCH, NỘP BÀI, CÔNG CỤ) ===

@@ -101,15 +101,34 @@ def build_ui(connect_events_fn):
                         transcript_results_df = gr.DataFrame(
                             headers=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"],
                             datatype=["str", "number", "str", "str"],
-                            row_count=10,
-                            col_count=(4, "fixed"),
-                            wrap=True,
-                            interactive=True,
-                            visible=True,
-                            column_widths=["15%", "15%", "60%", "0%"] # Ẩn cột Keyframe Path
+                            row_count=10, col_count=(4, "fixed"), wrap=True,
+                            interactive=True, visible=True,
+                            column_widths=["15%", "15%", "60%", "0%"]
                         )
-                        gr.Markdown("### 3. Xem Video từ Lời thoại")
-                        transcript_video_player = gr.Video(label="🎬 Video gốc (tua đến thời điểm được chọn)", interactive=False)
+                        
+                        # ==========================================================
+                        # === BƯỚC 2: XÂY DỰNG TRẠM PHÂN TÍCH LỜI THOẠI ===
+                        # ==========================================================
+                        gr.Markdown("### 3. Trạm Phân tích Lời thoại")
+                        with gr.Row():
+                            # Cột trái cho media (video và ảnh)
+                            with gr.Column(scale=1):
+                                transcript_video_player = gr.Video(
+                                    label="🎬 Video gốc (tua đến thời điểm được chọn)", 
+                                    interactive=False
+                                )
+                                transcript_keyframe_display = gr.Image(
+                                    label="🖼️ Keyframe tương ứng", 
+                                    type="filepath"
+                                )
+                            # Cột phải cho text (toàn bộ transcript)
+                            with gr.Column(scale=2):
+                                full_transcript_display = gr.Textbox(
+                                    label="📜 Toàn bộ Transcript của Video",
+                                    lines=20, # Tăng chiều cao để đọc được nhiều hơn
+                                    interactive=False,
+                                    placeholder="Click vào một dòng kết quả ở trên để xem toàn bộ lời thoại của video đó tại đây..."
+                                )
 
             # --- CỘT PHẢI (scale=1): TRẠM PHÂN TÍCH & NỘP BÀI (DÙNG CHUNG) ---
             with gr.Column(scale=1):
@@ -167,7 +186,7 @@ def build_ui(connect_events_fn):
             "transcript_query_1": transcript_query_1, "transcript_query_2": transcript_query_2,
             "transcript_query_3": transcript_query_3, "transcript_search_button": transcript_search_button,
             "transcript_clear_button": transcript_clear_button, "transcript_results_count": transcript_results_count,
-            "transcript_results_df": transcript_results_df, "transcript_video_player": transcript_video_player,
+            "transcript_results_df": transcript_results_df, "transcript_video_player": transcript_video_player,"transcript_keyframe_display": transcript_keyframe_display,"full_transcript_display": full_transcript_display,       
             
             # Cột Phải - Trạm Phân tích
             "selected_image_display": selected_image_display, "video_player": video_player,

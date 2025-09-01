@@ -56,17 +56,30 @@ def connect_event_listeners(ui_components):
 
 
     # === 2. SỰ KIỆN TAB "TAI THÍNH" (TRANSCRIPT INTEL) ===
-    # 2.1. Nút Tìm kiếm Transcript
+     # 2.1. Nút Tìm kiếm Transcript
     transcript_inputs = [ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"]]
     transcript_outputs = [ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"]]
     ui["transcript_search_button"].click(fn=transcript_search_with_backend, inputs=transcript_inputs, outputs=transcript_outputs)
-    
-    # 2.2. Nút Xóa bộ lọc Transcript
-    transcript_clear_outputs = [ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"], ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"]]
+
+    # 2.2. Nút Xóa bộ lọc Transcript (Cập nhật outputs)
+    transcript_clear_outputs = [
+        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"],
+        ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"],
+        ui["transcript_video_player"], ui["full_transcript_display"], ui["transcript_keyframe_display"]
+    ]
     ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, inputs=None, outputs=transcript_clear_outputs)
 
-    # 2.3. Chọn một dòng kết quả -> Phát video
-    ui["transcript_results_df"].select(fn=handlers.on_transcript_select, inputs=[ui["transcript_results_state"]], outputs=[ui["transcript_video_player"]])
+    # 2.3. Chọn một dòng kết quả -> Kích hoạt Trạm Phân tích Lời thoại
+    transcript_select_outputs = [
+        ui["transcript_video_player"], 
+        ui["full_transcript_display"],
+        ui["transcript_keyframe_display"]
+    ]
+    ui["transcript_results_df"].select(
+        fn=handlers.on_transcript_select, 
+        inputs=[ui["transcript_results_state"]], 
+        outputs=transcript_select_outputs
+    )
 
     # === 3. SỰ KIỆN DÙNG CHUNG (CỘT PHẢI) ===
     # 3.1. Vùng Nộp bài
@@ -86,40 +99,24 @@ def connect_event_listeners(ui_components):
 
     # 3.4. Nút Xóa Tất cả (Toàn bộ hệ thống)
     clear_all_outputs = [
-        # --- Tab Mắt Thần (7 outputs) ---
-        ui["results_gallery"], 
-        ui["status_output"], 
-        ui["response_state"], 
-        ui["page_info_display"], 
-        ui["gallery_items_state"], 
-        ui["current_page_state"], 
+        # Tab Mắt Thần
+        ui["results_gallery"], ui["status_output"], ui["response_state"], ui["page_info_display"], 
+        ui["gallery_items_state"], ui["current_page_state"],
         
-        # --- Tab Tai Thính (6 outputs) ---
-        ui["transcript_query_1"], 
-        ui["transcript_query_2"], 
-        ui["transcript_query_3"], 
-        ui["transcript_results_count"], 
-        ui["transcript_results_df"], 
-        ui["transcript_video_player"], 
-        ui["transcript_results_state"],
-
-        # --- Cột Phải: Trạm Phân tích (4 outputs) ---
-        ui["selected_image_display"], 
-        ui["video_player"], 
-        ui["selected_candidate_for_submission"],
-        full_video_path_state, # Lấy từ khai báo ở trên
-
-        # --- Cột Phải: Công cụ tính toán (3 outputs) ---
-        ui["frame_calculator_video_id"], 
-        ui["frame_calculator_timestamp"], 
-        ui["frame_calculator_output"],
-
-        # --- Cột Phải: Vùng Nộp bài (5 outputs) ---
-        ui["submission_list_display"], 
-        ui["submission_list_state"], 
-        ui["submission_list_selector"], 
-        ui["query_id_input"], 
-        ui["submission_file_output"]
+        # Tab Tai Thính
+        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"],
+        ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_video_player"],
+        ui["transcript_results_state"], ui["full_transcript_display"], ui["transcript_keyframe_display"],
+        
+        # Cột Phải - Trạm Phân tích Visual
+        ui["selected_image_display"], ui["video_player"], ui["selected_candidate_for_submission"],
+        
+        # Cột Phải - Công cụ tính toán
+        ui["frame_calculator_video_id"], ui["frame_calculator_timestamp"], ui["frame_calculator_output"],
+        
+        # Cột Phải - Vùng Nộp bài
+        ui["submission_list_display"], ui["submission_list_state"], ui["submission_list_selector"],
+        ui["query_id_input"], ui["submission_file_output"]
     ]
     # Bây giờ, danh sách này chỉ chứa các component object, không còn string lỗi.
     ui["clear_button"].click(fn=handlers.clear_all, inputs=None, outputs=clear_all_outputs, queue=False)
@@ -131,7 +128,3 @@ app = build_ui(connect_event_listeners)
 if __name__ == "__main__":
     print("--- 🚀 Khởi chạy Gradio App Server (Hạm đội Gọng Kìm Kép) ---")
     app.launch(share=True, allowed_paths=["/kaggle/input/", "/kaggle/working/"], debug=True)
-
-# ==============================================================================
-# === KẾT THÚC TÍCH HỢP GIAI ĐOẠN 4 ===
-# ==============================================================================
