@@ -29,7 +29,8 @@ def initialize_backend():
     # --- 2. Transcript Searcher (Transcript Intel Engine) ---
     print("--- 2/3: Khởi tạo TranscriptSearcher (Tai Thính)... ---")
     # Sử dụng file metadata v6 đã được làm giàu
-    METADATA_V6_PATH = RERANK_METADATA_PATH.replace("_v5.parquet", "_v6.parquet")
+    # METADATA_V6_PATH = RERANK_METADATA_PATH.replace("_v5.parquet", "_v6.parquet")
+    METADATA_V6_PATH = "/kaggle/input/stage1/rerank_metadata_v6.parquet"
     if not os.path.exists(METADATA_V6_PATH):
          print(f"--- ⚠️ CẢNH BÁO: Không tìm thấy file metadata v6 tại {METADATA_V6_PATH}. TranscriptSearcher sẽ không hoạt động. ---")
          transcript_searcher = None
