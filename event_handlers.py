@@ -113,7 +113,7 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
         timestamp = selected_row['timestamp']
         keyframe_path = selected_row['keyframe_path']
         video_path = os.path.join(VIDEO_BASE_PATH, f"{video_id}.mp4")
-        video_output = gr.Video.update(value=None)
+        video_output = gr.Video(value=None)
         if os.path.exists(video_path):
             video_output = gr.Video(value=video_path, start_time=timestamp)
         else:

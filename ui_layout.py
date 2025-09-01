@@ -25,7 +25,7 @@ video { border-radius: 12px !important; }
 ::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%); }
 #transcript-dataframe {
-    height: 100px !important;       /* Ấn định chiều cao cố định */
+    height: 10px !important;       /* Ấn định chiều cao cố định */
     overflow-y: auto !important;  /* Bật thanh cuộn dọc khi nội dung vượt quá */
 }
 """
