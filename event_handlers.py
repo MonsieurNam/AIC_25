@@ -379,8 +379,7 @@ def clear_submission_list():
 def clear_all():
     """
     Reset toàn bộ giao diện về trạng thái ban đầu.
-    Trả về một tuple lớn chứa tất cả các giá trị mặc định.
-    Thứ tự phải khớp 1-1 với `clear_all_outputs` trong app.py.
+    PHIÊN BẢN CUỐI CÙNG, ĐỒNG BỘ HOÀN TOÀN.
     """
     return (
         # --- 1. Tab Mắt Thần (6 outputs) ---
@@ -392,15 +391,10 @@ def clear_all():
         1,                                          # current_page_state
         
         # --- 2. Tab Tai Thính (9 outputs) ---
-        "",                                         # transcript_query_1
-        "",                                         # transcript_query_2
-        "",                                         # transcript_query_3
+        "", "", "",                                 # transcript_query_1, 2, 3
         "Tìm thấy: 0 kết quả.",                      # transcript_results_count
         pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), # transcript_results_df
-        None,                                       # transcript_video_player
-        None,                                       # transcript_results_state
-        "",                                         # full_transcript_display
-        None,                                       # transcript_keyframe_display
+        None, None, "", None,                       # video_player, state, full_display, keyframe_display
 
         # --- 3. Cột Phải: Trạm Phân tích Visual (4 outputs) ---
         None,                                       # selected_image_display
@@ -409,13 +403,11 @@ def clear_all():
         None,                                       # selected_candidate_for_submission
 
         # --- 4. Cột Phải: Công cụ tính toán (3 outputs) ---
-        "",                                         # frame_calculator_video_id
-        "",                                         # frame_calculator_time_input
-        "",                                         # frame_calculator_output
+        "", "", "",                                 # video_id, time_input, output
 
         # --- 5. Cột Phải: Bảng điều khiển Nộp bài (2 outputs) ---
         "",                                         # submission_text_editor
-        [],                                         # submission_list_state (reset state nội bộ)
+        [],                                         # submission_list_state
 
         # --- 6. Cột Phải: Vùng Xuất File (2 outputs) ---
         "",                                         # query_id_input

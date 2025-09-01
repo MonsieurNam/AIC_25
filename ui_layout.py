@@ -128,6 +128,8 @@ def build_ui(connect_events_fn):
                 with gr.Accordion("Trạm Phân tích Visual", open=True):
                     selected_image_display = gr.Image(label="Ảnh Keyframe Được chọn", type="filepath")
                     video_player = gr.Video(label="🎬 Clip 30 giây", autoplay=True)
+                    analysis_display_html = gr.HTML(label="Thông tin Phân tích Chi tiết")
+
                     view_full_video_button = gr.Button("🎬 Mở Video Gốc (Toàn bộ)")
                     with gr.Row():
                         add_top_button = gr.Button("➕ Thêm vào Top 1", variant="primary")
@@ -189,6 +191,7 @@ def build_ui(connect_events_fn):
             
             # Cột Phải - Trạm Phân tích Visual
             "selected_image_display": selected_image_display, "video_player": video_player,
+            "analysis_display_html": analysis_display_html,
             "view_full_video_button": view_full_video_button, "add_top_button": add_top_button,
             "add_bottom_button": add_bottom_button,
             
