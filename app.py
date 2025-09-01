@@ -89,41 +89,21 @@ def connect_event_listeners(ui_components):
         inputs=[ui["transcript_results_state"]], 
         outputs=transcript_select_outputs
     )
-    # 2.4. Thêm kết quả từ Transcript vào danh sách nộp bài
+     # 2.4. Thêm kết quả từ Transcript
     transcript_add_inputs = [ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_results_df"]]
-    # === CẬP NHẬT OUTPUTS ĐỂ ĐỒNG BỘ EDITOR ===
-    transcript_add_outputs = [
-        ui["submission_list_display"], ui["submission_list_state"], 
-        ui["submission_list_selector"], ui["submission_text_editor"]
-    ]
-    ui["add_transcript_top_button"].click(
-        fn=add_transcript_to_submission_with_backend,
-        inputs=transcript_add_inputs + [gr.Textbox("top", visible=False)],
-        outputs=transcript_add_outputs
-    )
-    ui["add_transcript_bottom_button"].click(
-        fn=add_transcript_to_submission_with_backend,
-        inputs=transcript_add_inputs + [gr.Textbox("bottom", visible=False)],
-        outputs=transcript_add_outputs
-    )
-
-    # === 3. SỰ KIỆN DÙNG CHUNG (CỘT PHẢI) ===
-    # 3.1. Trạm Phân tích Visual
+    transcript_add_outputs = [ui["submission_list_state"], ui["submission_text_editor"]]
+    ui["add_transcript_top_button"].click(fn=add_transcript_to_submission_with_backend, inputs=transcript_add_inputs + [gr.Textbox("top", visible=False)], outputs=transcript_add_outputs)
+    ui["add_transcript_bottom_button"].click(fn=add_transcript_to_submission_with_backend, inputs=transcript_add_inputs + [gr.Textbox("bottom", visible=False)], outputs=transcript_add_outputs)
+    
+    # 3.1. Thêm kết quả từ Visual
     add_visual_inputs = [ui["submission_list_state"], ui["selected_candidate_for_submission"], ui["response_state"]]
-    # === CẬP NHẬT OUTPUTS ĐỂ ĐỒNG BỘ EDITOR ===
-    add_visual_outputs = [
-        ui["submission_list_display"], ui["submission_list_state"],
-        ui["submission_list_selector"], ui["submission_text_editor"]
-    ]
+    add_visual_outputs = [ui["submission_list_state"], ui["submission_text_editor"]]
     ui["add_top_button"].click(fn=handlers.add_to_submission_list, inputs=add_visual_inputs + [gr.Textbox("top", visible=False)], outputs=add_visual_outputs)
     ui["add_bottom_button"].click(fn=handlers.add_to_submission_list, inputs=add_visual_inputs + [gr.Textbox("bottom", visible=False)], outputs=add_visual_outputs)
 
     # 3.2. Bảng điều khiển Nộp bài
-    ui["refresh_submission_button"].click(
-        fn=handlers.prepare_submission_for_edit,
-        inputs=[ui["submission_list_state"]],
-        outputs=[ui["submission_text_editor"]]
-    )
+    ui["refresh_submission_button"].click(fn=handlers.prepare_submission_for_edit, inputs=[ui["submission_list_state"]], outputs=[ui["submission_text_editor"]])
+    ui["clear_submission_button"].click(fn=handlers.clear_submission_state_and_editor, inputs=None, outputs=[ui["submission_list_state"], ui["submission_text_editor"]])
 
     # 3.3. Máy tính Thời gian & Frame
     calc_inputs = [ui["frame_calculator_video_id"], ui["frame_calculator_time_input"]]

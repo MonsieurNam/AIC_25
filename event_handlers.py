@@ -227,12 +227,10 @@ def get_full_video_path_for_button(video_path):
 def add_to_submission_list(
     submission_list: list, candidate: Dict, response_state: Dict, position: str
 ):
-    """Thêm ứng viên và cập nhật cả danh sách hiển thị và text editor."""
+    """Thêm ứng viên vào state và trả về nội dung CSV mới cho editor."""
     if not candidate:
         gr.Warning("Chưa có ứng viên nào được chọn để thêm!")
-        text_display = format_submission_list_for_display(submission_list)
-        csv_editor_content = format_submission_list_to_csv_string(submission_list)
-        return text_display, submission_list, gr.Dropdown(), csv_editor_content
+        return submission_list, format_submission_list_to_csv_string(submission_list)
 
     task_type = response_state.get("task_type")
     item_to_add = {**candidate, 'task_type': task_type}
@@ -246,35 +244,40 @@ def add_to_submission_list(
         else:
             submission_list.append(item_to_add)
         gr.Success(f"Đã thêm kết quả vào {'đầu' if position == 'top' else 'cuối'} danh sách!")
+    
+    # Chỉ cần trả về state mới và nội dung editor mới
+    return submission_list, format_submission_list_to_csv_string(submission_list)
 
-    text_display = format_submission_list_for_display(submission_list)
-    csv_editor_content = format_submission_list_to_csv_string(submission_list)
-    new_choices = [f"{i+1}. {item.get('keyframe_id') or 'TRAKE'}" for i, item in enumerate(submission_list)]
-    return text_display, submission_list, gr.Dropdown(choices=new_choices), csv_editor_content
-
-def modify_submission_list(
-    submission_list: list, selected_item_index_str: str, action: str
+# === HÀM ĐƯỢC TỐI GIẢN HÓA ===
+def add_transcript_result_to_submission(
+    submission_list: list, 
+    results_state: pd.DataFrame, 
+    selected_index: gr.SelectData,
+    position: str
 ):
-    """Modifies the submission list (move up/down, remove)."""
-    if not selected_item_index_str:
-        gr.Warning("Vui lòng chọn một mục từ danh sách để thao tác.")
-        return format_submission_list_for_display(submission_list), submission_list, selected_item_index_str
+    """
+    Trích xuất thông tin từ transcript và thêm vào danh sách nộp bài.
+    """
+    if selected_index is None or results_state is None or results_state.empty:
+        gr.Warning("Vui lòng chọn một kết quả từ bảng transcript trước khi thêm!")
+        return submission_list, format_submission_list_to_csv_string(submission_list)
+
     try:
-        index = int(selected_item_index_str.split('.')[0]) - 1
-        if not (0 <= index < len(submission_list)): raise ValueError("Index out of bounds")
-    except:
-        gr.Error("Lựa chọn không hợp lệ.")
-        return format_submission_list_for_display(submission_list), submission_list, None
-
-    if action == 'move_up' and index > 0:
-        submission_list[index], submission_list[index-1] = submission_list[index-1], submission_list[index]
-    elif action == 'move_down' and index < len(submission_list) - 1:
-        submission_list[index], submission_list[index+1] = submission_list[index+1], submission_list[index]
-    elif action == 'remove':
-        submission_list.pop(index)
-
-    new_choices = [f"{i+1}. {item.get('keyframe_id') or 'TRAKE (' + str(item.get('video_id')) + ')'}" for i, item in enumerate(submission_list)]
-    return format_submission_list_for_display(submission_list), submission_list, gr.Dropdown(choices=new_choices, value=None)
+        selected_row = results_state.iloc[selected_index.index[0]]
+        candidate = {
+            "video_id": selected_row['video_id'], "timestamp": selected_row['timestamp'],
+            "keyframe_id": f"transcript_{selected_row['timestamp']:.2f}s", "task_type": TaskType.KIS
+        }
+        return add_to_submission_list(submission_list, candidate, {"task_type": TaskType.KIS}, position)
+    except (IndexError, KeyError) as e:
+        gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
+        return submission_list, format_submission_list_to_csv_string(submission_list)
+        
+# === HÀM MỚI (thay thế clear_submission_list cũ) ===
+def clear_submission_state_and_editor():
+    """Xóa cả state và nội dung editor."""
+    gr.Info("Đã xóa toàn bộ danh sách nộp bài và nội dung trong bảng điều khiển.")
+    return [], ""
     
 def calculate_frame_number(video_id: str, time_input: str, fps_map: dict):
     """
@@ -302,37 +305,6 @@ def calculate_frame_number(video_id: str, time_input: str, fps_map: dict):
     
     return str(frame_number)
 
-def add_transcript_result_to_submission(
-    submission_list: list, 
-    results_state: pd.DataFrame, 
-    selected_index: gr.SelectData,
-    position: str
-):
-    """
-    Trích xuất thông tin từ dòng DataFrame được chọn và thêm vào danh sách nộp bài.
-    """
-    if selected_index is None or results_state is None or results_state.empty:
-        gr.Warning("Vui lòng chọn một kết quả từ bảng transcript trước khi thêm!")
-        text_display = format_submission_list_for_display(submission_list)
-        csv_editor_content = format_submission_list_to_csv_string(submission_list)
-        return text_display, submission_list, gr.Dropdown(), csv_editor_content
-
-    try:
-        selected_row = results_state.iloc[selected_index.index[0]]
-        candidate = {
-            "video_id": selected_row['video_id'],
-            "timestamp": selected_row['timestamp'],
-            "keyframe_id": f"transcript_{selected_row['timestamp']:.2f}s",
-            "task_type": TaskType.KIS
-        }
-        # Tái sử dụng logic của hàm cũ
-        return add_to_submission_list(submission_list, candidate, {"task_type": TaskType.KIS}, position)
-    except (IndexError, KeyError) as e:
-        gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
-        text_display = format_submission_list_for_display(submission_list)
-        csv_editor_content = format_submission_list_to_csv_string(submission_list)
-        return text_display, submission_list, gr.Dropdown(), csv_editor_content
-        
 # === HÀM MỚI ===
 def prepare_submission_for_edit(submission_list: list):
     """
@@ -367,15 +339,6 @@ def handle_submission(submission_csv_text: str, query_id: str):
         gr.Error(f"Lỗi định dạng CSV: {e}. Vui lòng kiểm tra lại nội dung trong Bảng điều khiển.")
         return None
     
-def clear_submission_list():
-    """Xóa toàn bộ danh sách nộp bài."""
-    gr.Info("Đã xóa danh sách nộp bài.")
-    return "Chưa có kết quả nào được thêm vào.", [], gr.Dropdown(choices=[], value=None)
-    
-# ==============================================================================
-# === HANDLER DỌN DẸP TOÀN BỘ HỆ THỐNG ===
-# ==============================================================================
-
 def clear_all():
     """
     Reset toàn bộ giao diện về trạng thái ban đầu.
