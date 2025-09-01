@@ -71,11 +71,23 @@ def connect_event_listeners(ui_components):
     ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, inputs=None, outputs=transcript_clear_outputs)
 
     # 2.3. Chọn một dòng kết quả -> Phát video và hiển thị full transcript
-    transcript_select_outputs = [ui["transcript_video_player"], ui["full_transcript_display"], ui["transcript_keyframe_display"]]
-    ui["transcript_results_df"].select(fn=handlers.on_transcript_select, inputs=[ui["transcript_results_state"]], outputs=transcript_select_outputs)
+    transcript_select_outputs = [
+        ui["transcript_video_player"], ui["full_transcript_display"],
+        ui["transcript_keyframe_display"], 
+        ui["transcript_selected_index_state"] # <-- Output mới: lưu chỉ số vào state
+    ]
+    ui["transcript_results_df"].select(
+        fn=handlers.on_transcript_select, 
+        inputs=[ui["transcript_results_state"]], 
+        outputs=transcript_select_outputs
+    )
 
-    # 2.4. Thêm kết quả từ Transcript vào danh sách nộp bài
-    transcript_add_inputs = [ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_results_df"]]
+    # 2.4. Thêm kết quả vào danh sách nộp bài (SỬA LẠI INPUTS)
+    transcript_add_inputs = [
+        ui["submission_list_state"], 
+        ui["transcript_results_state"], 
+        ui["transcript_selected_index_state"] # <-- Input mới: đọc chỉ số từ state
+    ]
     transcript_add_outputs = [ui["submission_list_state"], ui["submission_text_editor"]]
     ui["add_transcript_top_button"].click(fn=add_transcript_to_submission_with_backend, inputs=transcript_add_inputs + [gr.Textbox("top", visible=False)], outputs=transcript_add_outputs)
     ui["add_transcript_bottom_button"].click(fn=add_transcript_to_submission_with_backend, inputs=transcript_add_inputs + [gr.Textbox("bottom", visible=False)], outputs=transcript_add_outputs)
