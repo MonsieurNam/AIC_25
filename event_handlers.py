@@ -1,3 +1,4 @@
+from typing import List
 import gradio as gr
 import pandas as pd
 import numpy as np
