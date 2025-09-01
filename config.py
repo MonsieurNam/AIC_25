@@ -16,7 +16,7 @@ FAISS_INDEX_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/faiss.index')
 RERANK_METADATA_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/rerank_metadata_ultimate_v5.parquet')
 ALL_ENTITIES_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/all_detection_entities.json')
 VIDEO_BASE_PATH = os.path.join(KAGGLE_INPUT_DIR, 'aic2025-batch-1-video/')
-TRANSCRIPTS_JSON_DIR = os.path.join(KAGGLE_INPUT_DIR, '/kaggle/input/aic25-transcripts/transcripts') 
+TRANSCRIPTS_JSON_DIR = os.path.join(KAGGLE_INPUT_DIR, 'aic25-transcripts/transcripts') 
 
 def load_api_keys():
     """
