@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 import gradio as gr
 import pandas as pd
 import numpy as np
