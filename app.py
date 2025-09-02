@@ -34,9 +34,7 @@ def main():
         
         unified_analysis_outputs = [
             ui["video_player"], ui["selected_image_display"], ui["full_transcript_display"],
-            ui["analysis_display_html"], ui["selected_candidate_for_submission"],
-            ui["frame_calculator_video_id"], ui["frame_calculator_time_input"],
-            full_video_path_state
+            ui["analysis_display_html"]
         ]
         
         # ==============================================================================
@@ -52,7 +50,6 @@ def main():
             ui["page_info_display"], ui["gallery_items_state"], ui["current_page_state"]
         ]
         
-        # Sử dụng .then() để nối chuỗi sự kiện: Dọn dẹp trước, tìm kiếm sau.
         ui["search_button"].click(
             fn=handlers.clear_analysis_panel, outputs=unified_analysis_outputs
         ).then(
@@ -68,7 +65,11 @@ def main():
         ui["prev_page_button"].click(fn=handlers.update_gallery_page, inputs=[ui["gallery_items_state"], ui["current_page_state"], gr.Textbox("◀️ Trang trước", visible=False)], outputs=page_outputs)
         ui["next_page_button"].click(fn=handlers.update_gallery_page, inputs=[ui["gallery_items_state"], ui["current_page_state"], gr.Textbox("▶️ Trang sau", visible=False)], outputs=page_outputs)
         
-        ui["results_gallery"].select(fn=handlers.on_gallery_select, inputs=[ui["response_state"], ui["current_page_state"]], outputs=unified_analysis_outputs)
+        gallery_select_outputs = unified_analysis_outputs + [
+            ui["selected_candidate_for_submission"], ui["frame_calculator_video_id"],
+            ui["frame_calculator_time_input"], full_video_path_state
+        ]
+        ui["results_gallery"].select(fn=handlers.on_gallery_select, inputs=[ui["response_state"], ui["current_page_state"]], outputs=gallery_select_outputs)
 
         # ==============================================================================
         # === 2. SỰ KIỆN TAB "TAI THÍNH" (TRANSCRIPT INTEL) ===
@@ -86,15 +87,9 @@ def main():
         transcript_clear_outputs = transcript_search_main_outputs + unified_analysis_outputs + [ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"]]
         ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, outputs=transcript_clear_outputs)
 
-        # Sử dụng hàm wrapper để xử lý sự kiện select một cách an toàn và chống lỗi
-        def on_transcript_select_wrapper(state, evt: gr.SelectData):
-            # Lớp bảo vệ quan trọng nhất để ngăn lỗi AttributeError
-            if not isinstance(evt, gr.SelectData):
-                return None, None, "Lỗi: Sự kiện không hợp lệ.", "", None, "", "0.0", None, None
-            return handlers.on_transcript_select(state, evt, backend_objects['video_path_map'])
-
-        transcript_select_outputs = unified_analysis_outputs + [ui["transcript_selected_index_state"]]
-        ui["transcript_results_df"].select(fn=on_transcript_select_wrapper, inputs=[ui["transcript_results_state"]], outputs=transcript_select_outputs)
+        # Kết nối sự kiện select một cách trực tiếp và an toàn
+        transcript_select_outputs = unified_analysis_outputs + [ui["selected_candidate_for_submission"], ui["frame_calculator_video_id"], ui["frame_calculator_time_input"], full_video_path_state, ui["transcript_selected_index_state"]]
+        ui["transcript_results_df"].select(fn=handlers.on_transcript_select, inputs=[ui["transcript_results_state"]], outputs=transcript_select_outputs)
         
         # ==============================================================================
         # === 3. SỰ KIỆN DÙNG CHUNG (CỘT PHẢI) ===
@@ -108,6 +103,7 @@ def main():
         ui["add_top_button"].click(fn=partial(handlers.add_to_submission_list, position="top"), inputs=add_visual_inputs, outputs=add_outputs)
         ui["add_bottom_button"].click(fn=partial(handlers.add_to_submission_list, position="bottom"), inputs=add_visual_inputs, outputs=add_outputs)
         
+        # Sửa lỗi kết nối: Input phải là state chứa index đã chọn
         transcript_add_inputs = [ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_selected_index_state"]]
         ui["add_transcript_top_button"].click(fn=partial(handlers.add_transcript_result_to_submission, position="top"), inputs=transcript_add_inputs, outputs=add_outputs)
         ui["add_transcript_bottom_button"].click(fn=partial(handlers.add_transcript_result_to_submission, position="bottom"), inputs=transcript_add_inputs, outputs=add_outputs)
