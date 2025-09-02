@@ -158,7 +158,7 @@ def build_ui(connect_events_fn):
             # Cột Phải - Trạm Phân tích Hợp nhất
             "selected_image_display": selected_image_display, "video_player": video_player,
             "full_transcript_display": full_transcript_display, "analysis_display_html": analysis_display_html,
-            "view_full_video_button": view_full_video_button, "add_top_button": add_top_button,
+            "view_full_video_html": view_full_video_html, "add_top_button": add_top_button,
             "add_bottom_button": add_bottom_button,
             # Cột Phải - Bảng điều khiển Nộp bài
             "submission_text_editor": submission_text_editor,
