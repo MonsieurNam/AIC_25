@@ -106,10 +106,21 @@ def connect_event_listeners(ui_components):
 
     # Sử dụng hàm wrapper để xử lý sự kiện select một cách an toàn
     def on_transcript_select_wrapper(state, evt):
+        # Kiểm tra evt ngay tại đây để tránh lỗi
+        if evt is None:
+            # Trả về giá trị mặc định với đúng số lượng
+            return None, None, "Lỗi: Sự kiện không hợp lệ.", "", None, "", "0.0", None, None
         return handlers.on_transcript_select(state, evt, backend_objects['video_path_map'])
-    
+        
     transcript_select_outputs = unified_analysis_outputs + [ui["transcript_selected_index_state"]]
-    ui["transcript_results_df"].select(fn=on_transcript_select_wrapper, inputs=[ui["transcript_results_state"]], outputs=transcript_select_outputs)
+    
+    # Kết nối sự kiện một cách tường minh
+    ui["transcript_results_df"].select(
+        fn=on_transcript_select_wrapper,
+        # Chỉ định rõ cả hai inputs
+        inputs=[ui["transcript_results_state"], ui["transcript_results_df"]],
+        outputs=transcript_select_outputs
+    )
 
     # ==============================================================================
     # === 3. SỰ KIỆN DÙNG CHUNG (CỘT PHẢI) ===
