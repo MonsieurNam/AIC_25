@@ -17,7 +17,6 @@ from utils import create_video_segment, generate_submission_file
 
 def perform_search(query_text: str, num_results: int, w_clip: float, w_obj: float, w_semantic: float, lambda_mmr: float, master_searcher):
     analysis_clear_outputs = (None, None, "", "")
-    yield ([], "<div style='color: #4338ca;'>⏳ Đang quét visual...</div>", None, "Trang 1 / 1", [], 1, *analysis_clear_outputs)
     if not query_text.strip():
         gr.Warning("Vui lòng nhập truy vấn tìm kiếm!")
         return ([], "<div style='color: orange;'>⚠️ Vui lòng nhập truy vấn.</div>", None, "Trang 1 / 1", [], 1, *analysis_clear_outputs)
@@ -36,7 +35,7 @@ def perform_search(query_text: str, num_results: int, w_clip: float, w_obj: floa
     initial_gallery_view = gallery_paths[:ITEMS_PER_PAGE]
     total_pages = int(np.ceil(num_found / ITEMS_PER_PAGE)) or 1
     page_info = f"Trang 1 / {total_pages}"
-    yield (initial_gallery_view, status_msg, full_response, page_info, gallery_paths, 1, *analysis_clear_outputs)
+    return initial_gallery_view, status_msg, full_response, page_info, gallery_paths, 1
 
 def update_gallery_page(gallery_items: list, current_page: int, direction: str):
     if not gallery_items: return [], 1, "Trang 1 / 1"
@@ -47,18 +46,30 @@ def update_gallery_page(gallery_items: list, current_page: int, direction: str):
     end_index = start_index + ITEMS_PER_PAGE
     return gallery_items[start_index:end_index], new_page, f"Trang {new_page} / {total_pages}"
 
+def clear_analysis_panel():
+    """Trả về các giá trị rỗng để dọn dẹp Trạm Phân tích Hợp nhất."""
+    # video_player, selected_image_display, full_transcript_display, analysis_display_html
+    return None, None, "", ""
+
 def handle_transcript_search(query1: str, query2: str, query3: str, transcript_searcher):
-    analysis_clear_outputs = (None, None, "", "")
-    yield "Bắt đầu điều tra...", pd.DataFrame(), None, *analysis_clear_outputs
+    """
+    Chỉ thực hiện tìm kiếm và trả về kết quả. Không còn `yield`.
+    """
+    gr.Info("Bắt đầu điều tra transcript...") # Vẫn cung cấp phản hồi cho người dùng
+    
     results = None
     if query1.strip(): results = transcript_searcher.search(query1, current_results=results)
     if query2.strip(): results = transcript_searcher.search(query2, current_results=results)
     if query3.strip(): results = transcript_searcher.search(query3, current_results=results)
+
     if results is None:
-        return "Nhập truy vấn để bắt đầu điều tra.", pd.DataFrame(), None, *analysis_clear_outputs
+        return "Nhập truy vấn để bắt đầu điều tra.", pd.DataFrame(), None
+
     count_str = f"Tìm thấy: {len(results)} kết quả."
     display_df = results[['video_id', 'timestamp', 'transcript_text', 'keyframe_path']]
-    return count_str, display_df, results, *analysis_clear_outputs
+    
+    # Trả về 3 giá trị cho các output của nó
+    return count_str, display_df, results
 
 def clear_transcript_search():
     analysis_clear_outputs = (None, None, "", "")

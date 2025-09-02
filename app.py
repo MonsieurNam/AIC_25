@@ -25,135 +25,131 @@ add_transcript_to_submission_with_backend = partial(handlers.add_transcript_resu
 def connect_event_listeners(ui_components):
     """
     Kết nối TẤT CẢ các sự kiện của component UI với các hàm xử lý tương ứng.
-    PHIÊN BẢN CUỐI CÙNG, ĐÃ SỬA LỖI VÀ HOÀN THIỆN.
+    PHIÊN BẢN CUỐI CÙNG: Áp dụng Event Chaining và Wrapper functions.
     """
     ui = ui_components
     
-    # --- Định nghĩa các bộ outputs dùng chung ---
+    # --- Định nghĩa các bộ outputs và states dùng chung ---
     full_video_path_state = gr.State()
     
     unified_analysis_outputs = [
-        ui["video_player"], ui["selected_image_display"], ui["full_transcript_display"],
-        ui["analysis_display_html"], ui["selected_candidate_for_submission"],
-        ui["frame_calculator_video_id"], ui["frame_calculator_time_input"],
-        full_video_path_state
+        ui["video_player"], ui["selected_image_display"],
+        ui["full_transcript_display"], ui["analysis_display_html"]
     ]
     
+    # ==============================================================================
     # === 1. SỰ KIỆN TAB "MẮT THẦN" (VISUAL SCOUT) ===
-    visual_search_inputs = [ui["query_input"], ui["num_results"], ui["w_clip_slider"], ui["w_obj_slider"], ui["w_semantic_slider"], ui["lambda_mmr_slider"]]
-    visual_search_outputs = [
-        ui["results_gallery"], ui["status_output"], ui["response_state"],
-        ui["page_info_display"], ui["gallery_items_state"], ui["current_page_state"],
-    ] + unified_analysis_outputs[:-4] # Thêm các component cần dọn dẹp
-    ui["search_button"].click(fn=search_with_backend, inputs=visual_search_inputs, outputs=visual_search_outputs)
-    ui["query_input"].submit(fn=search_with_backend, inputs=visual_search_inputs, outputs=visual_search_outputs)
+    # ==============================================================================
     
+    visual_search_inputs = [
+        ui["query_input"], ui["num_results"], ui["w_clip_slider"], 
+        ui["w_obj_slider"], ui["w_semantic_slider"], ui["lambda_mmr_slider"]
+    ]
+    visual_search_main_outputs = [
+        ui["results_gallery"], ui["status_output"], ui["response_state"],
+        ui["page_info_display"], ui["gallery_items_state"], ui["current_page_state"]
+    ]
+
+    # Sử dụng .then() để nối chuỗi sự kiện: Dọn dẹp trước, tìm kiếm sau.
+    search_event = ui["search_button"].click(
+        fn=handlers.clear_analysis_panel,
+        outputs=unified_analysis_outputs
+    ).then(
+        fn=search_with_backend,
+        inputs=visual_search_inputs,
+        outputs=visual_search_main_outputs
+    )
+
+    # Nút Enter trong textbox cũng kích hoạt chuỗi sự kiện tương tự
+    ui["query_input"].submit(
+        fn=handlers.clear_analysis_panel,
+        outputs=unified_analysis_outputs
+    ).then(
+        fn=search_with_backend,
+        inputs=visual_search_inputs,
+        outputs=visual_search_main_outputs
+    )
+
     page_outputs = [ui["results_gallery"], ui["current_page_state"], ui["page_info_display"]]
     ui["prev_page_button"].click(fn=handlers.update_gallery_page, inputs=[ui["gallery_items_state"], ui["current_page_state"], gr.Textbox("◀️ Trang trước", visible=False)], outputs=page_outputs)
     ui["next_page_button"].click(fn=handlers.update_gallery_page, inputs=[ui["gallery_items_state"], ui["current_page_state"], gr.Textbox("▶️ Trang sau", visible=False)], outputs=page_outputs)
-
-    ui["results_gallery"].select(fn=handlers.on_gallery_select, inputs=[ui["response_state"], ui["current_page_state"]], outputs=unified_analysis_outputs)
     
+    gallery_select_outputs = unified_analysis_outputs + [
+        ui["selected_candidate_for_submission"],
+        ui["frame_calculator_video_id"],
+        ui["frame_calculator_time_input"],
+        full_video_path_state
+    ]
+    ui["results_gallery"].select(fn=handlers.on_gallery_select, inputs=[ui["response_state"], ui["current_page_state"]], outputs=gallery_select_outputs)
+
+    # ==============================================================================
     # === 2. SỰ KIỆN TAB "TAI THÍNH" (TRANSCRIPT INTEL) ===
+    # ==============================================================================
+
     transcript_inputs = [ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"]]
-    transcript_search_outputs = [
-        ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"],
-    ] + unified_analysis_outputs[:-4] # Thêm các component cần dọn dẹp
-    ui["transcript_search_button"].click(fn=transcript_search_with_backend, inputs=transcript_inputs, outputs=transcript_search_outputs)
-    
-    transcript_clear_outputs = [
-        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"],
+    transcript_search_main_outputs = [
         ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"]
-    ] + unified_analysis_outputs[:-4]
-    ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, inputs=None, outputs=transcript_clear_outputs)
-
-    # Sử dụng hàm wrapper để xử lý sự kiện select một cách an toàn
-    def on_transcript_select_wrapper(state: pd.DataFrame, evt: gr.SelectData):
-        # Hàm wrapper này có signature rõ ràng mà Gradio hiểu được.
-        # Sau đó nó gọi hàm logic thực sự với đầy đủ các đối tượng cần thiết.
-        return handlers.on_transcript_select(state, evt, backend_objects['video_path_map'])
-
-    transcript_select_outputs = [
-        ui["video_player"], ui["selected_image_display"], ui["full_transcript_display"],
-        ui["analysis_display_html"], ui["selected_candidate_for_submission"],
-        ui["frame_calculator_video_id"], ui["frame_calculator_time_input"],
-        full_video_path_state, ui["transcript_selected_index_state"]
     ]
     
-    ui["transcript_results_df"].select(
-        fn=on_transcript_select_wrapper, # <-- SỬ DỤNG WRAPPER
-        inputs=[ui["transcript_results_state"]], 
-        outputs=transcript_select_outputs
+    # Sử dụng .then() cho nút tìm kiếm transcript
+    ui["transcript_search_button"].click(
+        fn=handlers.clear_analysis_panel,
+        outputs=unified_analysis_outputs
+    ).then(
+        fn=transcript_search_with_backend,
+        inputs=transcript_inputs,
+        outputs=transcript_search_main_outputs
     )
+    
+    transcript_clear_outputs = transcript_search_main_outputs + unified_analysis_outputs + [ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"]]
+    ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, outputs=transcript_clear_outputs)
 
-    # 2.4 Thêm kết quả vào danh sách (cũng nên dùng wrapper cho an toàn)
-    def add_transcript_top_wrapper(sl, rs, si):
-        return handlers.add_transcript_result_to_submission(sl, rs, si, "top")
-        
-    def add_transcript_bottom_wrapper(sl, rs, si):
-        return handlers.add_transcript_result_to_submission(sl, rs, si, "bottom")
-        
-    transcript_add_inputs = [ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_selected_index_state"]]
+    # Sử dụng hàm wrapper để xử lý sự kiện select một cách an toàn
+    def on_transcript_select_wrapper(state, evt):
+        return handlers.on_transcript_select(state, evt, backend_objects['video_path_map'])
+    
+    transcript_select_outputs = unified_analysis_outputs + [ui["transcript_selected_index_state"]]
+    ui["transcript_results_df"].select(fn=on_transcript_select_wrapper, inputs=[ui["transcript_results_state"]], outputs=transcript_select_outputs)
+
+    # ==============================================================================
+    # === 3. SỰ KIỆN DÙNG CHUNG (CỘT PHẢI) ===
+    # ==============================================================================
+
+    ui["view_full_video_button"].click(fn=handlers.get_full_video_path_for_button, inputs=[full_video_path_state], outputs=[ui["submission_file_output"]])
+    
     add_outputs = [ui["submission_list_state"], ui["submission_text_editor"]]
     
-    ui["add_transcript_top_button"].click(fn=add_transcript_top_wrapper, inputs=transcript_add_inputs, outputs=add_outputs)
-    ui["add_transcript_bottom_button"].click(fn=add_transcript_bottom_wrapper, inputs=transcript_add_inputs, outputs=add_outputs)
-
-    # === 3. SỰ KIỆN DÙNG CHUNG (CỘT PHẢI) ===
-    # 3.1 Nút Mở Video Gốc (Đảm bảo kết nối đúng)
-    ui["view_full_video_button"].click(
-        fn=handlers.get_full_video_path_for_button, 
-        inputs=[full_video_path_state], 
-        outputs=[ui["submission_file_output"]]
-    )
-
+    # Thêm từ Visual
+    add_visual_inputs = [ui["submission_list_state"], ui["selected_candidate_for_submission"], ui["response_state"]]
+    ui["add_top_button"].click(fn=partial(handlers.add_to_submission_list, position="top"), inputs=add_visual_inputs, outputs=add_outputs)
+    ui["add_bottom_button"].click(fn=partial(handlers.add_to_submission_list, position="bottom"), inputs=add_visual_inputs, outputs=add_outputs)
     
-    # 3.2 Thêm vào Danh sách Nộp bài
-    add_visual_outputs = [ui["submission_list_state"], ui["submission_text_editor"]]
-    ui["add_top_button"].click(fn=handlers.add_to_submission_list, inputs=[ui["submission_list_state"], ui["selected_candidate_for_submission"], ui["response_state"], gr.Textbox("top", visible=False)], outputs=add_visual_outputs)
-    ui["add_bottom_button"].click(fn=handlers.add_to_submission_list, inputs=[ui["submission_list_state"], ui["selected_candidate_for_submission"], ui["response_state"], gr.Textbox("bottom", visible=False)], outputs=add_visual_outputs)
-    
+    # Thêm từ Transcript
     transcript_add_inputs = [ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_selected_index_state"]]
-    ui["add_transcript_top_button"].click(fn=partial(handlers.add_transcript_result_to_submission, position="top"), inputs=transcript_add_inputs, outputs=add_visual_outputs)
-    ui["add_transcript_bottom_button"].click(fn=partial(handlers.add_transcript_result_to_submission, position="bottom"), inputs=transcript_add_inputs, outputs=add_visual_outputs)
+    ui["add_transcript_top_button"].click(fn=partial(handlers.add_transcript_result_to_submission, position="top"), inputs=transcript_add_inputs, outputs=add_outputs)
+    ui["add_transcript_bottom_button"].click(fn=partial(handlers.add_transcript_result_to_submission, position="bottom"), inputs=transcript_add_inputs, outputs=add_outputs)
 
-    # 3.3 Bảng điều khiển Nộp bài
+    # Bảng điều khiển Nộp bài
     ui["refresh_submission_button"].click(fn=handlers.prepare_submission_for_edit, inputs=[ui["submission_list_state"]], outputs=[ui["submission_text_editor"]])
     ui["clear_submission_button"].click(fn=handlers.clear_submission_state_and_editor, inputs=None, outputs=[ui["submission_list_state"], ui["submission_text_editor"]])
     
-    # 3.4 Máy tính Thời gian & Frame
+    # Máy tính Thời gian & Frame
     ui["frame_calculator_button"].click(fn=calculate_frame_with_backend, inputs=[ui["frame_calculator_video_id"], ui["frame_calculator_time_input"]], outputs=[ui["frame_calculator_output"]])
     
-    # 3.5 Xuất File Nộp bài
+    # Xuất File Nộp bài
     ui["submission_button"].click(fn=handlers.handle_submission, inputs=[ui["submission_text_editor"], ui["query_id_input"]], outputs=[ui["submission_file_output"]])
     
-    # 3.6 Nút Xóa Tất cả
+    # Nút Xóa Tất cả
     clear_all_outputs = [
-        # 1. Tab Mắt Thần (6 outputs)
-        ui["results_gallery"], ui["status_output"], ui["response_state"],
-        ui["page_info_display"], ui["gallery_items_state"], ui["current_page_state"],
-        
-        # 2. Tab Tai Thính (6 outputs)
-        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"],
-        ui["transcript_results_count"], ui["transcript_results_df"],
-        ui["transcript_results_state"],
-
-        # 3. Cột Phải - Trạm Phân tích Hợp nhất (5 outputs)
-        ui["selected_image_display"], ui["video_player"],
-        ui["full_transcript_display"], ui["analysis_display_html"],
-        ui["selected_candidate_for_submission"],
-
-        # 4. Cột Phải - Công cụ tính toán (3 outputs)
+        ui["results_gallery"], ui["status_output"], ui["response_state"], ui["page_info_display"], ui["gallery_items_state"], ui["current_page_state"],
+        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"], ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"],
+        ui["selected_image_display"], ui["video_player"], ui["full_transcript_display"], ui["analysis_display_html"], ui["selected_candidate_for_submission"],
         ui["frame_calculator_video_id"], ui["frame_calculator_time_input"], ui["frame_calculator_output"],
-
-        # 5. Cột Phải - Bảng điều khiển Nộp bài (2 outputs)
         ui["submission_text_editor"], ui["submission_list_state"],
-
-        # 6. Cột Phải - Vùng Xuất File (2 outputs)
         ui["query_id_input"], ui["submission_file_output"]
     ]
     ui["clear_button"].click(fn=handlers.clear_all, inputs=None, outputs=clear_all_outputs, queue=False)
-
+    
 # === Xây dựng UI và truyền hàm kết nối sự kiện vào ===
 app = build_ui(connect_event_listeners)
 
