@@ -88,8 +88,18 @@ def on_gallery_select(response_state: dict, current_page: int, evt: gr.SelectDat
     return video_clip_path, keyframe_path, "Transcript chỉ hiển thị khi chọn từ Tab 'Tai Thính'.", analysis_html, selected_result, video_id, str(timestamp), video_path
 
 def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData, video_path_map: dict):
-    empty_return = (None, None, "Click vào một dòng kết quả...", "", None, "", "0.0", None, None)
-    if evt is None or evt.value is None or results_state is None or results_state.empty: return empty_return
+    """
+    Xử lý khi chọn dòng transcript.
+    Trả về ĐÚNG SỐ LƯỢNG outputs mà app.py cần.
+    """
+    empty_return = (
+        None, None, "Click vào một dòng kết quả...", "",  # unified_analysis_outputs (4 giá trị đầu)
+        None, "", "0.0", None,                        # unified_analysis_outputs (4 giá trị sau)
+        None                                          # transcript_selected_index_state
+    )
+    
+    if evt is None or evt.value is None or results_state is None or results_state.empty:
+        return empty_return
     try:
         selected_index = evt.index[0]
         selected_row = results_state.iloc[selected_index]
@@ -101,7 +111,17 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData, video_
         if os.path.exists(transcript_json_path):
             with open(transcript_json_path, 'r', encoding='utf-8') as f: full_transcript_text = json.load(f).get("text", "").strip()
         candidate = {"video_id": video_id, "timestamp": timestamp, "keyframe_path": keyframe_path, "keyframe_id": f"transcript_{timestamp:.2f}s"}
-        return video_clip_path, keyframe_path, full_transcript_text, "", candidate, video_id, str(timestamp), video_path, selected_index
+        return (
+                    video_clip_path,                    # video_player
+                    keyframe_path,                      # selected_image_display
+                    full_transcript_text,               # full_transcript_display
+                    "",                                 # analysis_display_html (trống)
+                    candidate,                          # selected_candidate_for_submission
+                    video_id,                           # frame_calculator_video_id
+                    str(timestamp),                     # frame_calculator_time_input
+                    video_path,                         # full_video_path_state
+                    selected_index                      # transcript_selected_index_state
+                )    
     except Exception as e:
         gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
         return empty_return
