@@ -38,8 +38,7 @@ except Exception as e:
 # ==============================================================================
 
 def clear_analysis_panel():
-    """Trả về các giá trị rỗng để dọn dẹp Trạm Phân tích Hợp nhất."""
-    return None, None, "", ""
+    return None, None, "", "", None, "", "", ""
 
 def perform_search(query_text: str, num_results: int, w_clip: float, w_obj: float, w_semantic: float, lambda_mmr: float, master_searcher):
     if not query_text.strip():
@@ -86,7 +85,8 @@ def handle_transcript_search(query1: str, query2: str, query3: str, transcript_s
 
 def clear_transcript_search():
     analysis_clear_vals = clear_analysis_panel()
-    return ("", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(), None, *analysis_clear_vals)
+    main_vals = ("", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(), None)
+    return *main_vals, *analysis_clear_vals
 
 def on_gallery_select(response_state: dict, current_page: int, evt: gr.SelectData):
     empty_return = (None, None, "", "", None, "", "0.0", None)
