@@ -129,20 +129,30 @@ def connect_event_listeners(ui_components):
     
     # 3.6 Nút Xóa Tất cả
     clear_all_outputs = [
-        # Mắt Thần
-        ui["results_gallery"], ui["status_output"], ui["response_state"], ui["page_info_display"], ui["gallery_items_state"], ui["current_page_state"],
-        # Tai Thính
-        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"], ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_video_player"], ui["transcript_results_state"], ui["full_transcript_display"], ui["transcript_keyframe_display"],
-        # Trạm Phân tích
-        ui["selected_image_display"], ui["video_player"], ui["analysis_display_html"], ui["selected_candidate_for_submission"],
-        # Máy tính Frame
+        # 1. Tab Mắt Thần (6 outputs)
+        ui["results_gallery"], ui["status_output"], ui["response_state"],
+        ui["page_info_display"], ui["gallery_items_state"], ui["current_page_state"],
+        
+        # 2. Tab Tai Thính (6 outputs)
+        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"],
+        ui["transcript_results_count"], ui["transcript_results_df"],
+        ui["transcript_results_state"],
+
+        # 3. Cột Phải - Trạm Phân tích Hợp nhất (5 outputs)
+        ui["selected_image_display"], ui["video_player"],
+        ui["full_transcript_display"], ui["analysis_display_html"],
+        ui["selected_candidate_for_submission"],
+
+        # 4. Cột Phải - Công cụ tính toán (3 outputs)
         ui["frame_calculator_video_id"], ui["frame_calculator_time_input"], ui["frame_calculator_output"],
-        # Bảng điều khiển
+
+        # 5. Cột Phải - Bảng điều khiển Nộp bài (2 outputs)
         ui["submission_text_editor"], ui["submission_list_state"],
-        # Xuất File
+
+        # 6. Cột Phải - Vùng Xuất File (2 outputs)
         ui["query_id_input"], ui["submission_file_output"]
     ]
-    ui["clear_button"].click(fn=handlers.clear_all, inputs=None, outputs=clear_all_outputs)
+    ui["clear_button"].click(fn=handlers.clear_all, inputs=None, outputs=clear_all_outputs, queue=False)
 
 # === Xây dựng UI và truyền hàm kết nối sự kiện vào ===
 app = build_ui(connect_event_listeners)

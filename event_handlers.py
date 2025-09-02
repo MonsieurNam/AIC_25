@@ -169,7 +169,44 @@ def handle_submission(submission_csv_text: str, query_id: str):
         return None
 
 def clear_all():
-    analysis_clear_outputs = (None, None, "", "")
-    return ([], "", None, "Trang 1 / 1", [], 1, *analysis_clear_outputs,
-            "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(), None,
-            "", [], "", None)
+    """
+    Reset toàn bộ giao diện về trạng thái ban đầu.
+    Cấu trúc trả về đã được đồng bộ hóa hoàn toàn với giao diện hợp nhất.
+    """
+    return (
+        # 1. Tab Mắt Thần (6 outputs)
+        [],                                         # results_gallery
+        "",                                         # status_output
+        None,                                       # response_state
+        "Trang 1 / 1",                              # page_info_display
+        [],                                         # gallery_items_state
+        1,                                          # current_page_state
+        
+        # 2. Tab Tai Thính (6 outputs)
+        "",                                         # transcript_query_1
+        "",                                         # transcript_query_2
+        "",                                         # transcript_query_3
+        "Tìm thấy: 0 kết quả.",                      # transcript_results_count
+        pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), # transcript_results_df
+        None,                                       # transcript_results_state
+
+        # 3. Cột Phải - Trạm Phân tích Hợp nhất (5 outputs)
+        None,                                       # selected_image_display
+        None,                                       # video_player
+        "",                                         # full_transcript_display
+        "",                                         # analysis_display_html
+        None,                                       # selected_candidate_for_submission
+
+        # 4. Cột Phải - Công cụ tính toán (3 outputs)
+        "",                                         # frame_calculator_video_id
+        "",                                         # frame_calculator_time_input
+        "",                                         # frame_calculator_output
+
+        # 5. Cột Phải - Bảng điều khiển Nộp bài (2 outputs)
+        "",                                         # submission_text_editor
+        [],                                         # submission_list_state
+
+        # 6. Cột Phải - Vùng Xuất File (2 outputs)
+        "",                                         # query_id_input
+        None,                                       # submission_file_output
+    )
