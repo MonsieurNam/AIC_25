@@ -1,4 +1,3 @@
-from typing import Dict, List
 import gradio as gr
 import pandas as pd
 import numpy as np
@@ -8,66 +7,39 @@ import traceback
 import json
 import re
 from io import StringIO
+from typing import Dict, List
 
-# --- Local imports ---
 from config import ITEMS_PER_PAGE, MAX_SUBMISSION_RESULTS, VIDEO_BASE_PATH, TRANSCRIPTS_JSON_DIR
-from ui_helpers import create_detailed_info_html, format_submission_list_for_display
+from ui_helpers import create_detailed_info_html
 from search_core.task_analyzer import TaskType
-from utils.formatting import (
-    format_list_for_submission, 
-    format_results_for_mute_gallery,
-    format_submission_list_to_csv_string
-)
+from utils.formatting import format_list_for_submission, format_results_for_mute_gallery, format_submission_list_to_csv_string
 from utils import create_video_segment, generate_submission_file
 
-# ==============================================================================
-# === GỌNG KÌM 1: HANDLERS CHO TAB "MẮT THẦN" (VISUAL SCOUT) ===
-# ==============================================================================
-
-def perform_search(
-    query_text: str, num_results: int, w_clip: float, w_obj: float, 
-    w_semantic: float, lambda_mmr: float,
-    master_searcher
-):
-    """Xử lý sự kiện tìm kiếm chính cho Tab Visual."""
+def perform_search(query_text: str, num_results: int, w_clip: float, w_obj: float, w_semantic: float, lambda_mmr: float, master_searcher):
+    analysis_clear_outputs = (None, None, "", "")
+    yield ([], "<div style='color: #4338ca;'>⏳ Đang quét visual...</div>", None, "Trang 1 / 1", [], 1, *analysis_clear_outputs)
     if not query_text.strip():
         gr.Warning("Vui lòng nhập truy vấn tìm kiếm!")
-        return [], "<div style='color: orange;'>⚠️ Vui lòng nhập truy vấn.</div>", None, "Trang 1 / 1", [], 1
-
-    loading_html = "<div style='color: #4338ca;'>⏳ Đang quét visual... AI đang phân tích và tìm kiếm.</div>"
-    yield ([], loading_html, None, "Trang 1 / 1", [], 1)
-    
+        return ([], "<div style='color: orange;'>⚠️ Vui lòng nhập truy vấn.</div>", None, "Trang 1 / 1", [], 1, *analysis_clear_outputs)
     try:
-        config = {
-            "top_k_final": int(num_results), "w_clip": w_clip, "w_obj": w_obj, 
-            "w_semantic": w_semantic, "lambda_mmr": lambda_mmr
-        }
+        config = {"top_k_final": int(num_results), "w_clip": w_clip, "w_obj": w_obj, "w_semantic": w_semantic, "lambda_mmr": lambda_mmr}
         start_time = time.time()
         full_response = master_searcher.search(query=query_text, config=config)
         search_time = time.time() - start_time
     except Exception as e:
         traceback.print_exc()
-        return [], f"<div style='color: red;'>🔥 Lỗi backend: {e}</div>", None, "Trang 1 / 1", [], 1
-
+        return ([], f"<div style='color: red;'>🔥 Lỗi backend: {e}</div>", None, "Trang 1 / 1", [], 1, *analysis_clear_outputs)
     gallery_paths = format_results_for_mute_gallery(full_response)
     num_found = len(gallery_paths)
     task_type_msg = full_response.get('task_type', TaskType.KIS).value
-    
-    if num_found == 0:
-        status_msg = f"<div style='color: #d97706;'>😔 **{task_type_msg}** | Không tìm thấy kết quả nào ({search_time:.2f}s).</div>"
-    else:
-        status_msg = f"<div style='color: #166534;'>✅ **{task_type_msg}** | Tìm thấy {num_found} kết quả ({search_time:.2f}s).</div>"
-
+    status_msg = f"<div style='color: {'#166534' if num_found > 0 else '#d97706'};'>{'✅' if num_found > 0 else '😔'} **{task_type_msg}** | Tìm thấy {num_found} kết quả ({search_time:.2f}s).</div>"
     initial_gallery_view = gallery_paths[:ITEMS_PER_PAGE]
     total_pages = int(np.ceil(num_found / ITEMS_PER_PAGE)) or 1
     page_info = f"Trang 1 / {total_pages}"
-    
-    yield (initial_gallery_view, status_msg, full_response, page_info, gallery_paths, 1)
+    yield (initial_gallery_view, status_msg, full_response, page_info, gallery_paths, 1, *analysis_clear_outputs)
 
-def update_gallery_page(gallery_items: List, current_page: int, direction: str):
-    """Cập nhật trang cho gallery visual."""
-    if not gallery_items:
-        return [], 1, "Trang 1 / 1"
+def update_gallery_page(gallery_items: list, current_page: int, direction: str):
+    if not gallery_items: return [], 1, "Trang 1 / 1"
     total_items = len(gallery_items)
     total_pages = int(np.ceil(total_items / ITEMS_PER_PAGE)) or 1
     new_page = min(total_pages, current_page + 1) if direction == "▶️ Trang sau" else max(1, current_page - 1)
@@ -75,137 +47,55 @@ def update_gallery_page(gallery_items: List, current_page: int, direction: str):
     end_index = start_index + ITEMS_PER_PAGE
     return gallery_items[start_index:end_index], new_page, f"Trang {new_page} / {total_pages}"
 
-# ==============================================================================
-# === GỌNG KÌM 2: HANDLERS CHO TAB "TAI THÍNH" (TRANSCRIPT INTEL) ===
-# ==============================================================================
-
 def handle_transcript_search(query1: str, query2: str, query3: str, transcript_searcher):
-    """Xử lý sự kiện tìm kiếm lồng nhau trên transcript."""
-    gr.Info("Bắt đầu điều tra transcript...")
+    analysis_clear_outputs = (None, None, "", "")
+    yield "Bắt đầu điều tra...", pd.DataFrame(), None, *analysis_clear_outputs
     results = None
-    if query1.strip():
-        results = transcript_searcher.search(query1, current_results=results)
-    if query2.strip():
-        results = transcript_searcher.search(query2, current_results=results)
-    if query3.strip():
-        results = transcript_searcher.search(query3, current_results=results)
-
+    if query1.strip(): results = transcript_searcher.search(query1, current_results=results)
+    if query2.strip(): results = transcript_searcher.search(query2, current_results=results)
+    if query3.strip(): results = transcript_searcher.search(query3, current_results=results)
     if results is None:
-        return "Nhập truy vấn để bắt đầu điều tra.", pd.DataFrame(), None
-
+        return "Nhập truy vấn để bắt đầu điều tra.", pd.DataFrame(), None, *analysis_clear_outputs
     count_str = f"Tìm thấy: {len(results)} kết quả."
     display_df = results[['video_id', 'timestamp', 'transcript_text', 'keyframe_path']]
-    return count_str, display_df, results
+    return count_str, display_df, results, *analysis_clear_outputs
 
 def clear_transcript_search():
-    """Xóa các ô tìm kiếm và kết quả của Tab Tai Thính."""
-    return "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), None, None, "", None
+    analysis_clear_outputs = (None, None, "", "")
+    return "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), None, *analysis_clear_outputs
 
 def on_gallery_select(response_state: dict, current_page: int, evt: gr.SelectData):
-    """
-    Xử lý khi click vào ảnh từ Tab Mắt Thần. Cập nhật Trạm Phân tích Hợp nhất.
-    """
     empty_return = (None, None, "", "", None, "", "0.0", None)
     if not response_state or evt is None: return empty_return
-
     results = response_state.get("results", [])
     global_index = (current_page - 1) * ITEMS_PER_PAGE + evt.index
     if not results or global_index >= len(results): return empty_return
-
     selected_result = results[global_index]
-    video_path = selected_result.get('video_path')
-    timestamp = selected_result.get('timestamp', 0.0)
-    keyframe_path = selected_result.get('keyframe_path')
-    video_id = selected_result.get('video_id')
-
+    video_path, timestamp, keyframe_path, video_id = selected_result.get('video_path'), selected_result.get('timestamp', 0.0), selected_result.get('keyframe_path'), selected_result.get('video_id')
     video_clip_path = create_video_segment(video_path, timestamp, duration=30)
     analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
-    
-    return (
-        video_clip_path,                    # value cho video_player
-        keyframe_path,                      # value cho selected_image_display
-        "Transcript chỉ hiển thị khi chọn từ Tab 'Tai Thính'.", # value cho full_transcript_display
-        analysis_html,                      # value cho analysis_display_html
-        selected_result,                    # value cho selected_candidate_for_submission
-        video_id,                           # value cho frame_calculator_video_id
-        str(timestamp),                     # value cho frame_calculator_time_input
-        video_path                          # value cho full_video_path_state
-    )
+    return video_clip_path, keyframe_path, "Transcript chỉ hiển thị khi chọn từ Tab 'Tai Thính'.", analysis_html, selected_result, video_id, str(timestamp), video_path
 
-# === HÀM ĐƯỢC ĐỒNG BỘ HÓA HOÀN TOÀN VỚI on_gallery_select ===
-def on_transcript_select(
-    results_state: pd.DataFrame, 
-    evt: gr.SelectData,
-    video_path_map: dict
-):
-    """
-    Xử lý khi chọn dòng transcript. Cập nhật Trạm Phân tích Hợp nhất
-    THEO CÁCH GIỐNG HỆT TAB MẮT THẦN.
-    """
-    # Định nghĩa giá trị trả về mặc định với đúng số lượng phần tử
+def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData, video_path_map: dict):
     empty_return = (None, None, "Click vào một dòng kết quả...", "", None, "", "0.0", None, None)
-    
-    if evt.value is None or results_state is None or results_state.empty:
-        return empty_return
-
+    if evt is None or evt.value is None or results_state is None or results_state.empty: return empty_return
     try:
         selected_index = evt.index[0]
         selected_row = results_state.iloc[selected_index]
-        video_id = selected_row['video_id']
-        timestamp = selected_row['timestamp']
-        keyframe_path = selected_row['keyframe_path']
-        
-        # 1. Lấy đường dẫn video gốc từ bản đồ
+        video_id, timestamp, keyframe_path = selected_row['video_id'], selected_row['timestamp'], selected_row['keyframe_path']
         video_path = video_path_map.get(video_id)
-        
-        video_clip_path = None
-        if video_path and os.path.exists(video_path):
-            # 2. TẠO CLIP 30 GIÂY, GIỐNG HỆT MẮT THẦN
-            video_clip_path = create_video_segment(video_path, timestamp, duration=30)
-        else:
-            gr.Warning(f"Không tìm thấy file video cho ID: '{video_id}'.")
-
-        # 3. Logic tải full transcript (không đổi)
-        full_transcript_text = f"Đang tìm transcript cho video {video_id}..."
+        video_clip_path = create_video_segment(video_path, timestamp, duration=30) if video_path and os.path.exists(video_path) else None
         transcript_json_path = os.path.join(TRANSCRIPTS_JSON_DIR, f"{video_id}.json")
+        full_transcript_text = ""
         if os.path.exists(transcript_json_path):
-            with open(transcript_json_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                full_transcript_text = data.get("text", "Lỗi: File JSON không chứa key 'text'.").strip()
-        else:
-            full_transcript_text = f"Thông báo: Không có file transcript cho video '{video_id}'."
-
-        # 4. Tạo một "candidate" giả để tương thích với luồng nộp bài
-        candidate = {
-            "video_id": video_id, "timestamp": timestamp, 
-            "keyframe_path": keyframe_path, "keyframe_id": f"transcript_{timestamp:.2f}s"
-        }
-
-        # 5. Trả về các giá trị cho các component dùng chung THEO ĐÚNG THỨ TỰ VÀ SỐ LƯỢNG
-        return (
-            video_clip_path,                    # value cho video_player (clip 30s)
-            keyframe_path,                      # value cho selected_image_display
-            full_transcript_text,               # value cho full_transcript_display
-            "",                                 # value cho analysis_display_html (trống)
-            candidate,                          # value cho selected_candidate_for_submission
-            video_id,                           # value cho frame_calculator_video_id
-            str(timestamp),                     # value cho frame_calculator_time_input
-            video_path,                         # value cho full_video_path_state
-            selected_index                      # value cho transcript_selected_index_state
-        )
+            with open(transcript_json_path, 'r', encoding='utf-8') as f: full_transcript_text = json.load(f).get("text", "").strip()
+        candidate = {"video_id": video_id, "timestamp": timestamp, "keyframe_path": keyframe_path, "keyframe_id": f"transcript_{timestamp:.2f}s"}
+        return video_clip_path, keyframe_path, full_transcript_text, "", candidate, video_id, str(timestamp), video_path, selected_index
     except Exception as e:
         gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
         return empty_return
 
-def get_full_video_path_for_button(video_path):
-    """Cung cấp file video để người dùng tải/xem."""
-    if video_path and os.path.exists(video_path):
-        return video_path
-    gr.Warning("Không tìm thấy đường dẫn video gốc.")
-    return None
-
-def add_to_submission_list(submission_list: list, candidate: Dict, response_state: Dict, position: str):
-    """Thêm ứng viên từ Visual Scout và cập nhật editor."""
+def add_to_submission_list(submission_list: list, candidate: dict, response_state: dict, position: str):
     if not candidate:
         gr.Warning("Chưa có ứng viên nào được chọn để thêm!")
         return submission_list, format_submission_list_to_csv_string(submission_list)
@@ -219,43 +109,27 @@ def add_to_submission_list(submission_list: list, candidate: Dict, response_stat
         gr.Warning(f"Danh sách đã đạt giới hạn {MAX_SUBMISSION_RESULTS} kết quả.")
     return submission_list, format_submission_list_to_csv_string(submission_list)
 
-def add_transcript_result_to_submission(
-    submission_list: list, 
-    results_state: pd.DataFrame, 
-    selected_index: int, # <-- NHẬN VÀO CHỈ SỐ TỪ STATE
-    position: str
-):
-    """
-    Thêm kết quả từ transcript vào danh sách, sử dụng chỉ số đã được lưu.
-    """
+def add_transcript_result_to_submission(submission_list: list, results_state: pd.DataFrame, selected_index: int, position: str):
     if selected_index is None or results_state is None or results_state.empty:
         gr.Warning("Vui lòng chọn một kết quả từ bảng transcript trước khi thêm!")
         return submission_list, format_submission_list_to_csv_string(submission_list)
-
     try:
-        # Sử dụng chỉ số đã lưu để lấy đúng hàng
         selected_row = results_state.iloc[selected_index]
-        candidate = {
-            "video_id": selected_row['video_id'], "timestamp": selected_row['timestamp'],
-            "keyframe_id": f"transcript_{selected_row['timestamp']:.2f}s", "task_type": TaskType.KIS
-        }
+        candidate = {"video_id": selected_row['video_id'], "timestamp": selected_row['timestamp'], "keyframe_id": f"transcript_{selected_row['timestamp']:.2f}s"}
         return add_to_submission_list(submission_list, candidate, {"task_type": TaskType.KIS}, position)
-    except (IndexError, KeyError) as e:
+    except Exception as e:
         gr.Error(f"Lỗi khi thêm kết quả transcript: {e}")
         return submission_list, format_submission_list_to_csv_string(submission_list)
 
 def prepare_submission_for_edit(submission_list: list):
-    """Đồng bộ hóa state vào text editor."""
     gr.Info("Đã đồng bộ hóa danh sách vào Bảng điều khiển.")
     return format_submission_list_to_csv_string(submission_list)
 
 def clear_submission_state_and_editor():
-    """Xóa state và text editor của submission."""
     gr.Info("Đã xóa danh sách nộp bài và nội dung trong bảng điều khiển.")
     return [], ""
 
 def calculate_frame_number(video_id: str, time_input: str, fps_map: dict):
-    """Tính toán frame index từ input giây hoặc phút:giây."""
     if not video_id or not time_input: return "Vui lòng nhập Video ID và Thời gian."
     try:
         time_input_str = str(time_input).strip()
@@ -263,61 +137,31 @@ def calculate_frame_number(video_id: str, time_input: str, fps_map: dict):
         if match:
             minutes, seconds = int(match.group(1)), float(match.group(2))
             timestamp = minutes * 60 + seconds
-            gr.Info(f"Đã chuyển đổi '{time_input_str}' thành {timestamp:.2f} giây.")
         else:
             timestamp = float(time_input_str)
         fps = fps_map.get(video_id, 30.0)
         return str(round(timestamp * fps))
-    except (ValueError, TypeError):
+    except Exception:
         return f"Lỗi: Định dạng thời gian '{time_input}' không hợp lệ."
 
 def handle_submission(submission_csv_text: str, query_id: str):
-    """Tạo file CSV nộp bài từ nội dung text editor."""
     if not submission_csv_text or not submission_csv_text.strip():
         gr.Warning("Nội dung nộp bài đang trống.")
         return None
     if not query_id.strip():
-        gr.Warning("Vui lòng nhập Query ID để tạo file.")
+        gr.Warning("Vui lòng nhập Query ID.")
         return None
     try:
         pd.read_csv(StringIO(submission_csv_text), header=None)
         file_path = generate_submission_file(submission_csv_text, query_id=query_id)
-        gr.Success(f"Đã tạo file nộp bài thành công từ nội dung đã sửa!")
+        gr.Success(f"Đã tạo file nộp bài thành công!")
         return file_path
     except Exception as e:
-        gr.Error(f"Lỗi định dạng CSV: {e}. Vui lòng kiểm tra lại nội dung trong Bảng điều khiển.")
+        gr.Error(f"Lỗi định dạng CSV: {e}.")
         return None
 
-# ==============================================================================
-# === HANDLER DỌN DẸP TOÀN BỘ HỆ THỐNG ===
-# ==============================================================================
-
 def clear_all():
-    """Reset toàn bộ giao diện về trạng thái ban đầu."""
-    return (
-        # Tab Mắt Thần
-        [], "", None, "Trang 1 / 1", [], 1,
-        # Tab Tai Thính
-        "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), None, None, "", None,
-        # Trạm Phân tích Visual
-        None, None, "", None,
-        # Công cụ tính toán
-        "", "", "",
-        # Bảng điều khiển Nộp bài
-        "", [],
-        # Vùng Xuất File
-        "", None,
-    )
-
-def generate_submission_file(submission_data, query_id: str, output_dir: str = "/kaggle/working/submissions") -> str:
-    """Ghi dữ liệu (DataFrame hoặc string) ra file CSV."""
-    os.makedirs(output_dir, exist_ok=True)
-    file_path = os.path.join(output_dir, f"{query_id}_submission.csv")
-    if isinstance(submission_data, str):
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(submission_data.strip())
-    elif isinstance(submission_data, pd.DataFrame):
-        submission_data.to_csv(file_path, header=False, index=False)
-    else:
-        raise TypeError("Dữ liệu nộp bài phải là DataFrame hoặc chuỗi CSV.")
-    return file_path
+    analysis_clear_outputs = (None, None, "", "")
+    return ([], "", None, "Trang 1 / 1", [], 1, *analysis_clear_outputs,
+            "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(), None,
+            "", [], "", None)

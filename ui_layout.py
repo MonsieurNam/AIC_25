@@ -24,10 +24,8 @@ video { border-radius: 12px !important; }
 ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%); }
-#transcript-dataframe {
-    height: 10px !important;       /* Ấn định chiều cao cố định */
-    overflow-y: auto !important;  /* Bật thanh cuộn dọc khi nội dung vượt quá */
-}
+/* Sửa lỗi hiển thị khoảng trống cho DataFrame */
+#transcript-dataframe { height: 600px !important; overflow-y: auto !important; }
 """
 
 app_header_html = """
@@ -47,8 +45,8 @@ app_footer_html = """
 
 def build_ui(connect_events_fn):
     """
-    Xây dựng toàn bộ giao diện người dùng và kết nối các sự kiện.
-    PHIÊN BẢN CUỐI CÙNG, ĐÃ SỬA LỖI KEYERROR.
+    Xây dựng toàn bộ giao diện người dùng.
+    PHIÊN BẢN CUỐI CÙNG, ĐÃ SỬA LỖI VÀ HỢP NHẤT.
     """
     with gr.Blocks(theme=gr.themes.Soft(), css=custom_css, title="🚀 AIC25 Search Fleet") as app:
         
@@ -59,9 +57,10 @@ def build_ui(connect_events_fn):
         submission_list_state = gr.State([])
         selected_candidate_for_submission = gr.State()
         transcript_results_state = gr.State()
+        transcript_selected_index_state = gr.State()
 
         gr.HTML(app_header_html)
-        transcript_selected_index_state = gr.State()
+        
         with gr.Row(variant='panel'):
             # --- CỘT TRÁI (scale=2): KHU VỰC TÌM KIẾM CHÍNH ---
             with gr.Column(scale=2):
@@ -101,26 +100,20 @@ def build_ui(connect_events_fn):
                         with gr.Row():
                              add_transcript_top_button = gr.Button("➕ Thêm kết quả đã chọn vào Top 1", variant="primary")
                              add_transcript_bottom_button = gr.Button("➕ Thêm kết quả đã chọn vào cuối")
-                        transcript_results_df = gr.DataFrame(headers=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"], datatype=["str", "number", "str", "str"], row_count=10, col_count=(4, "fixed"), wrap=True, interactive=True, visible=True, column_widths=["15%", "15%", "60%", "0%"], elem_id="transcript_dataframe")
-                        gr.Markdown("### 3. Trạm Phân tích Lời thoại")
-                        with gr.Row():
-                            with gr.Column(scale=1):
-                                transcript_video_player = gr.Video(label="🎬 Video gốc (tua đến thời điểm được chọn)", interactive=False)
-                                transcript_keyframe_display = gr.Image(label="🖼️ Keyframe tương ứng", type="filepath")
-                            with gr.Column(scale=2):
-                                full_transcript_display = gr.Textbox(label="📜 Toàn bộ Transcript của Video", lines=20, interactive=False, placeholder="Click vào một dòng kết quả ở trên để xem toàn bộ lời thoại...")
+                        transcript_results_df = gr.DataFrame(headers=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"], datatype=["str", "number", "str", "str"], row_count=10, col_count=(4, "fixed"), wrap=True, interactive=True, visible=True, column_widths=["15%", "15%", "60%", "0%"], elem_id="transcript-dataframe")
             
             # --- CỘT PHẢI (scale=1): TRẠM PHÂN TÍCH & NỘP BÀI (DÙNG CHUNG) ---
             with gr.Column(scale=1):
-                gr.Markdown("### 🔬 Trạm Phân tích & Nộp bài")
-                with gr.Accordion("Trạm Phân tích Visual", open=True):
-                    selected_image_display = gr.Image(label="Ảnh Keyframe Được chọn", type="filepath")
-                    video_player = gr.Video(label="🎬 Clip 30 giây", autoplay=True)
-                    analysis_display_html = gr.HTML(label="Thông tin Phân tích Chi tiết")
+                gr.Markdown("### 🔬 Trạm Phân tích Hợp nhất")
+                with gr.Accordion("Media Player & Phân tích", open=True):
+                    selected_image_display = gr.Image(label="🖼️ Keyframe được chọn", type="filepath")
+                    video_player = gr.Video(label="🎬 Media Player", autoplay=False)
+                    full_transcript_display = gr.Textbox(label="📜 Transcript (nếu có)", lines=10, interactive=False, placeholder="Nội dung transcript của video sẽ hiện ở đây...")
+                    analysis_display_html = gr.HTML(label="📊 Phân tích Điểm số (cho Visual Search)")
                     view_full_video_button = gr.Button("🎬 Mở Video Gốc (Toàn bộ)")
                     with gr.Row():
-                        add_top_button = gr.Button("➕ Thêm vào Top 1", variant="primary")
-                        add_bottom_button = gr.Button("➕ Thêm vào cuối")
+                        add_top_button = gr.Button("➕ Thêm (từ Visual) vào Top 1", variant="primary")
+                        add_bottom_button = gr.Button("➕ Thêm (từ Visual) vào cuối")
                 with gr.Accordion("📋 Bảng điều khiển Nộp bài", open=True):
                     gr.Markdown("Nội dung dưới đây sẽ được lưu vào file CSV. **Bạn có thể chỉnh sửa trực tiếp.**")
                     submission_text_editor = gr.Textbox(label="Nội dung File Nộp bài (Định dạng CSV)", lines=15, interactive=True, placeholder="Thêm kết quả từ các tab tìm kiếm hoặc dán trực tiếp vào đây...")
@@ -145,6 +138,7 @@ def build_ui(connect_events_fn):
             "current_page_state": current_page_state, "submission_list_state": submission_list_state,
             "selected_candidate_for_submission": selected_candidate_for_submission,
             "transcript_results_state": transcript_results_state,
+            "transcript_selected_index_state": transcript_selected_index_state,
             # Tab Mắt Thần
             "query_input": query_input, "search_button": search_button, "num_results": num_results,
             "w_clip_slider": w_clip_slider, "w_obj_slider": w_obj_slider, "w_semantic_slider": w_semantic_slider,
@@ -157,14 +151,10 @@ def build_ui(connect_events_fn):
             "transcript_query_3": transcript_query_3, "transcript_search_button": transcript_search_button,
             "transcript_clear_button": transcript_clear_button, "transcript_results_count": transcript_results_count,
             "add_transcript_top_button": add_transcript_top_button, "add_transcript_bottom_button": add_transcript_bottom_button,
-            "transcript_results_df": transcript_results_df, "transcript_video_player": transcript_video_player,
-            "transcript_keyframe_display": transcript_keyframe_display, 
-            "transcript_selected_index_state": transcript_selected_index_state,
-
-            "full_transcript_display": full_transcript_display,
-            # Cột Phải - Trạm Phân tích Visual
+            "transcript_results_df": transcript_results_df,
+            # Cột Phải - Trạm Phân tích Hợp nhất
             "selected_image_display": selected_image_display, "video_player": video_player,
-            "analysis_display_html": analysis_display_html,
+            "full_transcript_display": full_transcript_display, "analysis_display_html": analysis_display_html,
             "view_full_video_button": view_full_video_button, "add_top_button": add_top_button,
             "add_bottom_button": add_bottom_button,
             # Cột Phải - Bảng điều khiển Nộp bài
