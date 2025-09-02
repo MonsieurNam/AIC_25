@@ -82,12 +82,17 @@ def connect_event_listeners(ui_components):
         ui["transcript_keyframe_display"], 
         ui["transcript_selected_index_state"] 
     ]
+    
+    def on_transcript_select_wrapper(state: pd.DataFrame, evt: gr.SelectData):
+        # Hàm này có thể truy cập vào backend_objects từ scope bên ngoài
+        return handlers.on_transcript_select(state, evt, backend_objects['video_path_map'])
+    
     ui["transcript_results_df"].select(
-        fn=lambda state, evt: handlers.on_transcript_select(state, evt, backend_objects['video_path_map']), 
+        fn=on_transcript_select_wrapper,
         inputs=[ui["transcript_results_state"]], 
         outputs=transcript_select_outputs
     )
-
+    
     # 2.4. Thêm kết quả vào danh sách nộp bài (SỬA LẠI INPUTS)
     transcript_add_inputs = [
         ui["submission_list_state"], 
@@ -97,13 +102,19 @@ def connect_event_listeners(ui_components):
     transcript_add_outputs = [ui["submission_list_state"], ui["submission_text_editor"]]
     
     # === SỬA LỖI TẠI ĐÂY: Dùng lambda cho các hàm add vì chúng cũng nhận event data (dù ẩn) ===
+    def add_transcript_top_wrapper(sl, rs, si):
+        return handlers.add_transcript_result_to_submission(sl, rs, si, "top")
+        
+    def add_transcript_bottom_wrapper(sl, rs, si):
+        return handlers.add_transcript_result_to_submission(sl, rs, si, "bottom")
+
     ui["add_transcript_top_button"].click(
-        fn=lambda sl, rs, si: handlers.add_transcript_result_to_submission(sl, rs, si, "top"),
+        fn=add_transcript_top_wrapper,
         inputs=transcript_add_inputs,
         outputs=transcript_add_outputs
     )
     ui["add_transcript_bottom_button"].click(
-        fn=lambda sl, rs, si: handlers.add_transcript_result_to_submission(sl, rs, si, "bottom"),
+        fn=add_transcript_bottom_wrapper,
         inputs=transcript_add_inputs,
         outputs=transcript_add_outputs
     )
