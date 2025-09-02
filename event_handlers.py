@@ -95,6 +95,14 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData, video_
         gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
         return empty_return
 
+def get_full_video_path_for_button(video_path):
+    """Cung cấp file video để người dùng tải/xem."""
+    if video_path and os.path.exists(video_path):
+        # Trả về đường dẫn để component gr.File có thể xử lý
+        return video_path
+    gr.Warning("Không tìm thấy đường dẫn video gốc để mở.")
+    return None
+
 def add_to_submission_list(submission_list: list, candidate: dict, response_state: dict, position: str):
     if not candidate:
         gr.Warning("Chưa có ứng viên nào được chọn để thêm!")

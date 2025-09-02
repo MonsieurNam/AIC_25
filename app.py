@@ -68,15 +68,45 @@ def connect_event_listeners(ui_components):
     ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, inputs=None, outputs=transcript_clear_outputs)
 
     # Sử dụng hàm wrapper để xử lý sự kiện select một cách an toàn
-    def on_transcript_select_wrapper(state, evt):
+    def on_transcript_select_wrapper(state: pd.DataFrame, evt: gr.SelectData):
+        # Hàm wrapper này có signature rõ ràng mà Gradio hiểu được.
+        # Sau đó nó gọi hàm logic thực sự với đầy đủ các đối tượng cần thiết.
         return handlers.on_transcript_select(state, evt, backend_objects['video_path_map'])
+
+    transcript_select_outputs = [
+        ui["video_player"], ui["selected_image_display"], ui["full_transcript_display"],
+        ui["analysis_display_html"], ui["selected_candidate_for_submission"],
+        ui["frame_calculator_video_id"], ui["frame_calculator_time_input"],
+        full_video_path_state, ui["transcript_selected_index_state"]
+    ]
     
-    transcript_select_outputs = unified_analysis_outputs + [ui["transcript_selected_index_state"]]
-    ui["transcript_results_df"].select(fn=on_transcript_select_wrapper, inputs=[ui["transcript_results_state"]], outputs=transcript_select_outputs)
+    ui["transcript_results_df"].select(
+        fn=on_transcript_select_wrapper, # <-- SỬ DỤNG WRAPPER
+        inputs=[ui["transcript_results_state"]], 
+        outputs=transcript_select_outputs
+    )
+
+    # 2.4 Thêm kết quả vào danh sách (cũng nên dùng wrapper cho an toàn)
+    def add_transcript_top_wrapper(sl, rs, si):
+        return handlers.add_transcript_result_to_submission(sl, rs, si, "top")
+        
+    def add_transcript_bottom_wrapper(sl, rs, si):
+        return handlers.add_transcript_result_to_submission(sl, rs, si, "bottom")
+        
+    transcript_add_inputs = [ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_selected_index_state"]]
+    add_outputs = [ui["submission_list_state"], ui["submission_text_editor"]]
+    
+    ui["add_transcript_top_button"].click(fn=add_transcript_top_wrapper, inputs=transcript_add_inputs, outputs=add_outputs)
+    ui["add_transcript_bottom_button"].click(fn=add_transcript_bottom_wrapper, inputs=transcript_add_inputs, outputs=add_outputs)
 
     # === 3. SỰ KIỆN DÙNG CHUNG (CỘT PHẢI) ===
-    # 3.1 Nút Mở Video Gốc
-    ui["view_full_video_button"].click(fn=handlers.get_full_video_path_for_button, inputs=[full_video_path_state], outputs=[ui["submission_file_output"]])
+    # 3.1 Nút Mở Video Gốc (Đảm bảo kết nối đúng)
+    ui["view_full_video_button"].click(
+        fn=handlers.get_full_video_path_for_button, 
+        inputs=[full_video_path_state], 
+        outputs=[ui["submission_file_output"]]
+    )
+
     
     # 3.2 Thêm vào Danh sách Nộp bài
     add_visual_outputs = [ui["submission_list_state"], ui["submission_text_editor"]]
