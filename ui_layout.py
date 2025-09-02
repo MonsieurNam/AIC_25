@@ -58,6 +58,7 @@ def build_ui(connect_events_fn):
         selected_candidate_for_submission = gr.State()
         transcript_results_state = gr.State()
         transcript_selected_index_state = gr.State()
+        video_path_map_state = gr.State()
 
         gr.HTML(app_header_html)
         
@@ -139,6 +140,7 @@ def build_ui(connect_events_fn):
             "selected_candidate_for_submission": selected_candidate_for_submission,
             "transcript_results_state": transcript_results_state,
             "transcript_selected_index_state": transcript_selected_index_state,
+            "video_path_map_state": video_path_map_state,
             # Tab Mắt Thần
             "query_input": query_input, "search_button": search_button, "num_results": num_results,
             "w_clip_slider": w_clip_slider, "w_obj_slider": w_obj_slider, "w_semantic_slider": w_semantic_slider,

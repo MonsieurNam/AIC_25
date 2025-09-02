@@ -123,13 +123,20 @@ def connect_event_listeners(ui_components):
         if not isinstance(evt, gr.SelectData): # Kiểm tra an toàn
             return None, None, "Lỗi: Sự kiện không hợp lệ.", "", None, "", "0.0", None, None
         return handlers.on_transcript_select(state, evt, backend_objects['video_path_map'])
-        
-    transcript_select_outputs = unified_analysis_outputs + [ui["transcript_selected_index_state"]] # Tổng cộng 9
     
+    transcript_select_inputs = [
+        ui["transcript_results_state"],
+        ui["video_path_map_state"], # <-- Thêm state làm input
+        ui["transcript_results_df"]  # <-- Thêm component nguồn để Gradio truyền evt
+    ]
+        
+    transcript_select_outputs = unified_analysis_outputs + [ui["transcript_selected_index_state"]]
+    
+    # Kết nối trực tiếp, không cần wrapper
     ui["transcript_results_df"].select(
-        fn=on_transcript_select_wrapper,
-        inputs=[ui["transcript_results_state"]],
-        outputs=transcript_select_outputs # Danh sách này cũng đã khớp
+        fn=handlers.on_transcript_select,
+        inputs=transcript_select_inputs,
+        outputs=transcript_select_outputs
     )
 
     # ==============================================================================
@@ -183,6 +190,17 @@ def connect_event_listeners(ui_components):
     
 # === Xây dựng UI và truyền hàm kết nối sự kiện vào ===
 app = build_ui(connect_event_listeners)
+
+@app.load
+def load_backend_data_into_state(ui_components):
+    """
+    Sự kiện này chạy một lần duy nhất khi ứng dụng tải xong.
+    Đây là nơi lý tưởng để điền dữ liệu vào State.
+    """
+    print("--- Đang tải dữ liệu backend vào Gradio State... ---")
+    return {
+        ui_components["video_path_map_state"]: backend_objects['video_path_map']
+    }
 
 # --- Giai đoạn 4: Khởi chạy App Server ---
 if __name__ == "__main__":

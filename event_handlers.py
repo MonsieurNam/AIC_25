@@ -112,7 +112,11 @@ def on_gallery_select(response_state: dict, current_page: int, evt: gr.SelectDat
         video_path                          # full_video_path_state
     )
 
-def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData, video_path_map: dict):
+def on_transcript_select(
+    results_state: pd.DataFrame, 
+    video_path_map: dict, # <-- Nhận map trực tiếp
+    evt: gr.SelectData,
+):    
     """
     Xử lý khi chọn dòng transcript.
     Trả về ĐÚNG SỐ LƯỢNG outputs mà app.py cần.
