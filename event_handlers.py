@@ -48,8 +48,16 @@ def update_gallery_page(gallery_items: list, current_page: int, direction: str):
 
 def clear_analysis_panel():
     """Trả về các giá trị rỗng để dọn dẹp Trạm Phân tích Hợp nhất."""
-    # video_player, selected_image_display, full_transcript_display, analysis_display_html
-    return None, None, "", ""
+    return (
+        None,   # video_player
+        None,   # selected_image_display
+        "",     # full_transcript_display
+        "",     # analysis_display_html
+        None,   # selected_candidate_for_submission
+        "",     # frame_calculator_video_id
+        "0.0",  # frame_calculator_time_input
+        None    # full_video_path_state
+    )
 
 def handle_transcript_search(query1: str, query2: str, query3: str, transcript_searcher):
     """
@@ -72,8 +80,16 @@ def handle_transcript_search(query1: str, query2: str, query3: str, transcript_s
     return count_str, display_df, results
 
 def clear_transcript_search():
-    analysis_clear_outputs = (None, None, "", "")
-    return "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), None, *analysis_clear_outputs
+    """Xóa các ô tìm kiếm và kết quả của Tab Tai Thính."""
+    # 6 outputs cho Tab Tai Thính + 8 outputs cho Trạm Phân tích
+    analysis_clear_vals = clear_analysis_panel()
+    return (
+        "", "", "", # query 1, 2, 3
+        "Tìm thấy: 0 kết quả.", 
+        pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), 
+        None, # transcript_results_state
+        *analysis_clear_vals
+    )
 
 def on_gallery_select(response_state: dict, current_page: int, evt: gr.SelectData):
     empty_return = (None, None, "", "", None, "", "0.0", None)
@@ -209,44 +225,21 @@ def handle_submission(submission_csv_text: str, query_id: str):
         return None
 
 def clear_all():
-    """
-    Reset toàn bộ giao diện về trạng thái ban đầu.
-    Cấu trúc trả về đã được đồng bộ hóa hoàn toàn với giao diện hợp nhất.
-    """
+    """Reset toàn bộ giao diện về trạng thái ban đầu. PHIÊN BẢN ĐỒNG BỘ CUỐI CÙNG."""
+    analysis_clear_vals = clear_analysis_panel()
+    transcript_clear_main_vals = ("", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(), None)
+    submission_clear_vals = ("", [])
+    file_clear_vals = ("", None)
+    
     return (
-        # 1. Tab Mắt Thần (6 outputs)
-        [],                                         # results_gallery
-        "",                                         # status_output
-        None,                                       # response_state
-        "Trang 1 / 1",                              # page_info_display
-        [],                                         # gallery_items_state
-        1,                                          # current_page_state
-        
-        # 2. Tab Tai Thính (6 outputs)
-        "",                                         # transcript_query_1
-        "",                                         # transcript_query_2
-        "",                                         # transcript_query_3
-        "Tìm thấy: 0 kết quả.",                      # transcript_results_count
-        pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), # transcript_results_df
-        None,                                       # transcript_results_state
-
-        # 3. Cột Phải - Trạm Phân tích Hợp nhất (5 outputs)
-        None,                                       # selected_image_display
-        None,                                       # video_player
-        "",                                         # full_transcript_display
-        "",                                         # analysis_display_html
-        None,                                       # selected_candidate_for_submission
-
-        # 4. Cột Phải - Công cụ tính toán (3 outputs)
-        "",                                         # frame_calculator_video_id
-        "",                                         # frame_calculator_time_input
-        "",                                         # frame_calculator_output
-
-        # 5. Cột Phải - Bảng điều khiển Nộp bài (2 outputs)
-        "",                                         # submission_text_editor
-        [],                                         # submission_list_state
-
-        # 6. Cột Phải - Vùng Xuất File (2 outputs)
-        "",                                         # query_id_input
-        None,                                       # submission_file_output
+        # Mắt Thần
+        [], "", None, "Trang 1 / 1", [], 1,
+        # Tai Thính
+        *transcript_clear_main_vals,
+        # Trạm Phân tích
+        *analysis_clear_vals,
+        # Bảng điều khiển
+        *submission_clear_vals,
+        # Xuất File
+        *file_clear_vals
     )

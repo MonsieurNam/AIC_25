@@ -94,10 +94,9 @@ def connect_event_listeners(ui_components):
 
     transcript_inputs = [ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"]]
     transcript_search_main_outputs = [
-        ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"]
+        ui["transcript_results_count"], ui["transcript_results_df"],
+        ui["transcript_results_state"]
     ]
-    
-    # Sử dụng .then() cho nút tìm kiếm transcript
     ui["transcript_search_button"].click(
         fn=handlers.clear_analysis_panel,
         outputs=unified_analysis_outputs
@@ -107,9 +106,18 @@ def connect_event_listeners(ui_components):
         outputs=transcript_search_main_outputs
     )
     
-    transcript_clear_outputs = transcript_search_main_outputs + unified_analysis_outputs + [ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"]]
-    ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, outputs=transcript_clear_outputs)
-
+    transcript_clear_main_outputs = [
+        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"],
+        ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"]
+    ]
+    # Tổng cộng: 6 outputs chính + 8 outputs dọn dẹp = 14 outputs
+    transcript_clear_outputs = transcript_clear_main_outputs + unified_analysis_outputs
+    
+    ui["transcript_clear_button"].click(
+        fn=handlers.clear_transcript_search, 
+        outputs=transcript_clear_outputs
+    )
+    
     # Sử dụng hàm wrapper để xử lý sự kiện select một cách an toàn
     def on_transcript_select_wrapper(state, evt):
         if not isinstance(evt, gr.SelectData): # Kiểm tra an toàn
@@ -158,11 +166,17 @@ def connect_event_listeners(ui_components):
     
     # Nút Xóa Tất cả
     clear_all_outputs = [
-        ui["results_gallery"], ui["status_output"], ui["response_state"], ui["page_info_display"], ui["gallery_items_state"], ui["current_page_state"],
-        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"], ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"],
-        ui["selected_image_display"], ui["video_player"], ui["full_transcript_display"], ui["analysis_display_html"], ui["selected_candidate_for_submission"],
-        ui["frame_calculator_video_id"], ui["frame_calculator_time_input"], ui["frame_calculator_output"],
+        # Mắt Thần
+        ui["results_gallery"], ui["status_output"], ui["response_state"],
+        ui["page_info_display"], ui["gallery_items_state"], ui["current_page_state"],
+        # Tai Thính
+        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"],
+        ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"],
+        # Trạm Phân tích
+        *unified_analysis_outputs,
+        # Bảng điều khiển
         ui["submission_text_editor"], ui["submission_list_state"],
+        # Xuất File
         ui["query_id_input"], ui["submission_file_output"]
     ]
     ui["clear_button"].click(fn=handlers.clear_all, inputs=None, outputs=clear_all_outputs, queue=False)
