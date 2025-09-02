@@ -18,9 +18,10 @@ def initialize_backend():
     print("--- 🚀 Giai đoạn 2/4: Đang cấu hình và khởi tạo TOÀN BỘ Backend... ---")
     
     # --- 1. Master Searcher (Visual Scout Engine) ---
-    print("--- 1/3: Khởi tạo MasterSearcher (Mắt Thần)... ---")
+    print("--- 1/3: Quét và lập bản đồ đường dẫn video... ---")
     all_video_files = glob.glob(os.path.join(VIDEO_BASE_PATH, "**", "*.mp4"), recursive=True)
     video_path_map = {os.path.basename(f).replace('.mp4', ''): f for f in all_video_files}
+    print(f"--- ✅ Lập bản đồ thành công cho {len(video_path_map)} video. ---")
     
     basic_searcher = BasicSearcher(FAISS_INDEX_PATH, RERANK_METADATA_PATH, video_path_map, clip_features_path=CLIP_FEATURES_PATH)
     master_searcher = MasterSearcher(basic_searcher=basic_searcher, openai_api_key=OPENAI_API_KEY, gemini_api_key=GEMINI_API_KEY, entities_path=ALL_ENTITIES_PATH, clip_features_path=CLIP_FEATURES_PATH)    
@@ -58,5 +59,6 @@ def initialize_backend():
     return {
         "master_searcher": master_searcher,
         "transcript_searcher": transcript_searcher,
-        "fps_map": fps_map
+        "fps_map": fps_map,
+        "video_path_map": video_path_map 
     }

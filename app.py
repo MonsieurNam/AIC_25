@@ -23,6 +23,10 @@ search_with_backend = partial(handlers.perform_search, master_searcher=backend_o
 transcript_search_with_backend = partial(handlers.handle_transcript_search, transcript_searcher=backend_objects['transcript_searcher'])
 calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=backend_objects['fps_map'])
 add_transcript_to_submission_with_backend = partial(handlers.add_transcript_result_to_submission)
+on_transcript_select_with_backend = partial(
+    handlers.on_transcript_select, 
+    video_path_map=backend_objects['video_path_map']
+)
 
 def connect_event_listeners(ui_components):
     """
@@ -72,12 +76,13 @@ def connect_event_listeners(ui_components):
 
     # 2.3. Chọn một dòng kết quả -> Phát video và hiển thị full transcript
     transcript_select_outputs = [
-        ui["transcript_video_player"], ui["full_transcript_display"],
+        ui["transcript_video_player"], 
+        ui["full_transcript_display"],
         ui["transcript_keyframe_display"], 
-        ui["transcript_selected_index_state"] # <-- Output mới: lưu chỉ số vào state
+        ui["transcript_selected_index_state"] 
     ]
     ui["transcript_results_df"].select(
-        fn=handlers.on_transcript_select, 
+        fn=on_transcript_select_with_backend, 
         inputs=[ui["transcript_results_state"]], 
         outputs=transcript_select_outputs
     )
