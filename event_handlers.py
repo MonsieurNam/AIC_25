@@ -101,74 +101,11 @@ def clear_transcript_search():
     """Xóa các ô tìm kiếm và kết quả của Tab Tai Thính."""
     return "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(columns=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"]), None, None, "", None
 
-def on_transcript_select(
-    results_state: pd.DataFrame, 
-    evt: gr.SelectData,
-    video_path_map: dict # <-- Nhận bản đồ đường dẫn đã được "tiêm" vào
-):
+def on_gallery_select(response_state: dict, current_page: int, evt: gr.SelectData):
     """
-    Xử lý khi người dùng chọn một dòng trong bảng kết quả transcript.
-    
-    Hàm này sẽ:
-    1. Lấy video_id từ dòng được chọn.
-    2. Sử dụng `video_path_map` để tra cứu đường dẫn file video chính xác.
-    3. Trả về chuỗi đường dẫn file video để component `gr.Video` hiển thị.
-    4. Tải và hiển thị toàn bộ transcript của video tương ứng.
-    5. Hiển thị keyframe tương ứng với dòng được chọn.
-    6. Lưu lại chỉ số của dòng được chọn vào state để phục vụ chức năng "Thêm vào nộp bài".
+    Xử lý khi click vào ảnh từ Tab Mắt Thần. Cập nhật Trạm Phân tích Hợp nhất.
     """
-    # Giá trị trả về mặc định khi có lỗi hoặc không có lựa chọn
-    # Thứ tự: video, full_transcript, keyframe, selected_index
-    empty_return = None, "Click vào một dòng kết quả để xem chi tiết.", None, None
-    
-    if evt.value is None or results_state is None or results_state.empty:
-        return empty_return
-    
-    try:
-        # Lấy thông tin từ dòng được chọn trong DataFrame state
-        selected_index = evt.index[0]
-        selected_row = results_state.iloc[selected_index]
-        video_id = selected_row['video_id']
-        keyframe_path = selected_row['keyframe_path']
-        
-        # --- 1. LẤY ĐƯỜNG DẪN VIDEO TỪ BẢN ĐỒ (giải pháp cốt lõi) ---
-        video_path = video_path_map.get(video_id) # Dùng .get() để an toàn, trả về None nếu không tìm thấy
-        
-        video_output_path = None
-        if video_path and os.path.exists(video_path):
-            video_output_path = video_path # Đây là chuỗi đường dẫn chính xác
-        else:
-            gr.Warning(f"Không tìm thấy file video cho ID: '{video_id}' trong bản đồ đường dẫn hoặc file không tồn tại.")
-
-        # --- 2. Tải và hiển thị toàn bộ Transcript ---
-        full_transcript_text = f"Đang tìm transcript cho video {video_id}..."
-        transcript_json_path = os.path.join(TRANSCRIPTS_JSON_DIR, f"{video_id}.json")
-        
-        if os.path.exists(transcript_json_path):
-            try:
-                with open(transcript_json_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    full_transcript_text = data.get("text", f"Lỗi: File '{video_id}.json' không chứa key 'text'.").strip()
-            except Exception as e:
-                full_transcript_text = f"Lỗi khi đọc file JSON '{video_id}.json': {e}"
-        else:
-            full_transcript_text = f"Thông báo: Không có file transcript cho video '{video_id}'."
-        
-        # --- 3. Trả về tất cả các giá trị cho các component output ---
-        # Thứ tự phải khớp chính xác với danh sách `outputs` trong app.py
-        return video_output_path, full_transcript_text, keyframe_path, selected_index
-
-    except (IndexError, KeyError) as e:
-        gr.Error(f"Lỗi khi xử lý lựa chọn: {e}")
-        return empty_return
-
-# ==============================================================================
-# === HANDLERS DÙNG CHUNG (PHÂN TÍCH, NỘP BÀI, CÔNG CỤ) ===
-# ==============================================================================
-
-def on_gallery_select(response_state: Dict, current_page: int, evt: gr.SelectData):
-    """Xử lý khi click vào ảnh trong gallery."""
-    empty_return = None, None, "", None, "", "0.0", None
+    empty_return = (None, None, "", "", None, "", "0.0", None)
     if not response_state or evt is None: return empty_return
 
     results = response_state.get("results", [])
@@ -178,12 +115,87 @@ def on_gallery_select(response_state: Dict, current_page: int, evt: gr.SelectDat
     selected_result = results[global_index]
     video_path = selected_result.get('video_path')
     timestamp = selected_result.get('timestamp', 0.0)
+    keyframe_path = selected_result.get('keyframe_path')
+    video_id = selected_result.get('video_id')
 
     video_clip_path = create_video_segment(video_path, timestamp, duration=30)
     analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
+    
+    return (
+        video_clip_path,                    # value cho video_player
+        keyframe_path,                      # value cho selected_image_display
+        "Transcript chỉ hiển thị khi chọn từ Tab 'Tai Thính'.", # value cho full_transcript_display
+        analysis_html,                      # value cho analysis_display_html
+        selected_result,                    # value cho selected_candidate_for_submission
+        video_id,                           # value cho frame_calculator_video_id
+        str(timestamp),                     # value cho frame_calculator_time_input
+        video_path                          # value cho full_video_path_state
+    )
 
-    return (selected_result.get('keyframe_path'), video_clip_path, analysis_html,
-            selected_result, selected_result.get('video_id'), str(timestamp), video_path)
+# === HÀM ĐƯỢC ĐỒNG BỘ HÓA HOÀN TOÀN VỚI on_gallery_select ===
+def on_transcript_select(
+    results_state: pd.DataFrame, 
+    evt: gr.SelectData,
+    video_path_map: dict
+):
+    """
+    Xử lý khi chọn dòng transcript. Cập nhật Trạm Phân tích Hợp nhất
+    THEO CÁCH GIỐNG HỆT TAB MẮT THẦN.
+    """
+    # Định nghĩa giá trị trả về mặc định với đúng số lượng phần tử
+    empty_return = (None, None, "Click vào một dòng kết quả...", "", None, "", "0.0", None, None)
+    
+    if evt.value is None or results_state is None or results_state.empty:
+        return empty_return
+
+    try:
+        selected_index = evt.index[0]
+        selected_row = results_state.iloc[selected_index]
+        video_id = selected_row['video_id']
+        timestamp = selected_row['timestamp']
+        keyframe_path = selected_row['keyframe_path']
+        
+        # 1. Lấy đường dẫn video gốc từ bản đồ
+        video_path = video_path_map.get(video_id)
+        
+        video_clip_path = None
+        if video_path and os.path.exists(video_path):
+            # 2. TẠO CLIP 30 GIÂY, GIỐNG HỆT MẮT THẦN
+            video_clip_path = create_video_segment(video_path, timestamp, duration=30)
+        else:
+            gr.Warning(f"Không tìm thấy file video cho ID: '{video_id}'.")
+
+        # 3. Logic tải full transcript (không đổi)
+        full_transcript_text = f"Đang tìm transcript cho video {video_id}..."
+        transcript_json_path = os.path.join(TRANSCRIPTS_JSON_DIR, f"{video_id}.json")
+        if os.path.exists(transcript_json_path):
+            with open(transcript_json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                full_transcript_text = data.get("text", "Lỗi: File JSON không chứa key 'text'.").strip()
+        else:
+            full_transcript_text = f"Thông báo: Không có file transcript cho video '{video_id}'."
+
+        # 4. Tạo một "candidate" giả để tương thích với luồng nộp bài
+        candidate = {
+            "video_id": video_id, "timestamp": timestamp, 
+            "keyframe_path": keyframe_path, "keyframe_id": f"transcript_{timestamp:.2f}s"
+        }
+
+        # 5. Trả về các giá trị cho các component dùng chung THEO ĐÚNG THỨ TỰ VÀ SỐ LƯỢNG
+        return (
+            video_clip_path,                    # value cho video_player (clip 30s)
+            keyframe_path,                      # value cho selected_image_display
+            full_transcript_text,               # value cho full_transcript_display
+            "",                                 # value cho analysis_display_html (trống)
+            candidate,                          # value cho selected_candidate_for_submission
+            video_id,                           # value cho frame_calculator_video_id
+            str(timestamp),                     # value cho frame_calculator_time_input
+            video_path,                         # value cho full_video_path_state
+            selected_index                      # value cho transcript_selected_index_state
+        )
+    except Exception as e:
+        gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
+        return empty_return
 
 def get_full_video_path_for_button(video_path):
     """Cung cấp file video để người dùng tải/xem."""

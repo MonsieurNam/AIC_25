@@ -22,6 +22,8 @@ print("--- Giai đoạn 3/4: Đang xây dựng giao diện và kết nối sự 
 search_with_backend = partial(handlers.perform_search, master_searcher=backend_objects['master_searcher'])
 transcript_search_with_backend = partial(handlers.handle_transcript_search, transcript_searcher=backend_objects['transcript_searcher'])
 calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=backend_objects['fps_map'])
+on_transcript_select_with_backend = partial(handlers.on_transcript_select, video_path_map=backend_objects['video_path_map'])
+add_transcript_to_submission_with_backend = partial(handlers.add_transcript_result_to_submission)
 
 # add_transcript_to_submission_with_backend = partial(handlers.add_transcript_result_to_submission)
 on_transcript_select_with_backend = partial(
@@ -62,33 +64,34 @@ def connect_event_listeners(ui_components):
 
 
     # === 2. SỰ KIỆN TAB "TAI THÍNH" (TRANSCRIPT INTEL) ===
-    # 2.1. Nút Tìm kiếm Transcript
-    transcript_inputs = [ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"]]
-    transcript_outputs = [ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"]]
-    ui["transcript_search_button"].click(fn=transcript_search_with_backend, inputs=transcript_inputs, outputs=transcript_outputs)
-
-    # 2.2. Nút Xóa bộ lọc Transcript
-    transcript_clear_outputs = [
-        ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"],
-        ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"],
-        ui["transcript_video_player"], ui["full_transcript_display"], ui["transcript_keyframe_display"]
-    ]
-    ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, inputs=None, outputs=transcript_clear_outputs)
-
-    # 2.3. Chọn một dòng kết quả -> Phát video và hiển thị full transcript
-    transcript_select_outputs = [
-        ui["transcript_video_player"], 
+    # --- 2.1. ĐỊNH NGHĨA BỘ OUTPUTS HỢP NHẤT ---
+    # Đây là danh sách các component chung ở cột phải mà cả hai Tab sẽ cập nhật
+    unified_analysis_outputs = [
+        ui["video_player"],
+        ui["selected_image_display"],
         ui["full_transcript_display"],
-        ui["transcript_keyframe_display"], 
-        ui["transcript_selected_index_state"] 
+        ui["analysis_display_html"],
+        ui["selected_candidate_for_submission"],
+        ui["frame_calculator_video_id"],
+        ui["frame_calculator_time_input"],
+        full_video_path_state
     ]
     
-    def on_transcript_select_wrapper(state: pd.DataFrame, evt: gr.SelectData):
-        # Hàm này có thể truy cập vào backend_objects từ scope bên ngoài
-        return handlers.on_transcript_select(state, evt, backend_objects['video_path_map'])
-    
+    # --- 2.2. KẾT NỐI SỰ KIỆN "SELECT" TỪ MẮT THẦN ---
+    # Hàm `on_gallery_select` trả về 8 giá trị, khớp chính xác với bộ outputs này
+    ui["results_gallery"].select(
+        fn=handlers.on_gallery_select,
+        inputs=[ui["response_state"], ui["current_page_state"]], 
+        outputs=unified_analysis_outputs
+    )
+
+    # --- 2.3. KẾT NỐI SỰ KIỆN "SELECT" TỪ TAI THÍNH ---
+    # Hàm `on_transcript_select` trả về 9 giá trị, do đó chúng ta cần thêm output cuối cùng
+    transcript_select_outputs = unified_analysis_outputs + [
+        ui["transcript_selected_index_state"]
+    ]
     ui["transcript_results_df"].select(
-        fn=on_transcript_select_wrapper,
+        fn=on_transcript_select_with_backend,
         inputs=[ui["transcript_results_state"]], 
         outputs=transcript_select_outputs
     )
