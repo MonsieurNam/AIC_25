@@ -98,7 +98,7 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData, video_
         None                                          # transcript_selected_index_state
     )
     
-    if evt is None or evt.value is None or results_state is None or results_state.empty:
+    if not isinstance(evt, gr.SelectData) or results_state is None or results_state.empty:
         return empty_return
     try:
         selected_index = evt.index[0]
@@ -122,8 +122,8 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData, video_
                     video_path,                         # full_video_path_state
                     selected_index                      # transcript_selected_index_state
                 )    
-    except Exception as e:
-        gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
+    except (IndexError, KeyError, AttributeError) as e: # Bắt thêm AttributeError
+        gr.Error(f"Lỗi khi xử lý lựa chọn: {e}")
         return empty_return
 
 def get_full_video_path_for_button(video_path):

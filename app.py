@@ -105,20 +105,17 @@ def connect_event_listeners(ui_components):
     ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, outputs=transcript_clear_outputs)
 
     # Sử dụng hàm wrapper để xử lý sự kiện select một cách an toàn
-    def on_transcript_select_wrapper(state, evt):
-        # Kiểm tra evt ngay tại đây để tránh lỗi
-        if evt is None:
-            # Trả về giá trị mặc định với đúng số lượng
-            return None, None, "Lỗi: Sự kiện không hợp lệ.", "", None, "", "0.0", None, None
+    def on_transcript_select_wrapper(state, evt: gr.SelectData):
+        # Hàm này có thể truy cập `backend_objects` từ scope bên ngoài
         return handlers.on_transcript_select(state, evt, backend_objects['video_path_map'])
         
     transcript_select_outputs = unified_analysis_outputs + [ui["transcript_selected_index_state"]]
     
-    # Kết nối sự kiện một cách tường minh
+    # Kết nối sự kiện một cách chính xác
     ui["transcript_results_df"].select(
         fn=on_transcript_select_wrapper,
-        # Chỉ định rõ cả hai inputs
-        inputs=[ui["transcript_results_state"], ui["transcript_results_df"]],
+        # CHỈ có state là input tường minh
+        inputs=[ui["transcript_results_state"]],
         outputs=transcript_select_outputs
     )
 
