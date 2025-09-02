@@ -98,7 +98,13 @@ def on_gallery_select(response_state: dict, current_page: int, evt: gr.SelectDat
     video_path, timestamp, keyframe_path, video_id = selected_result.get('video_path'), selected_result.get('timestamp', 0.0), selected_result.get('keyframe_path'), selected_result.get('video_id')
     video_clip_path = create_video_segment(video_path, timestamp, duration=30)
     analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
-    return video_clip_path, keyframe_path, "Transcript chỉ hiển thị khi chọn từ Tab 'Tai Thính'.", analysis_html, selected_result, video_id, str(timestamp), video_path
+    link_html = ""
+    if video_path and os.path.exists(video_path):
+        # Gradio sẽ phục vụ các file trong allowed_paths
+        # Chúng ta cần tạo một đường dẫn tương đối mà trình duyệt có thể truy cập
+        file_url = f"/file={video_path}"
+        link_html = f"<a href='{file_url}' target='_blank' style='color: #4338ca; text-decoration: none;'>🎬 Mở Video Gốc (Toàn bộ) trong Tab mới</a>"
+    return video_clip_path, keyframe_path, "Transcript chỉ hiển thị khi chọn từ Tab 'Tai Thính'.", analysis_html, selected_result, video_id, str(timestamp), link_html 
 
 def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
     empty_return = (None, None, "Click vào một dòng kết quả...", "", None, "", "0.0", None, None)
@@ -114,16 +120,15 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
         if os.path.exists(transcript_json_path):
             with open(transcript_json_path, 'r', encoding='utf-8') as f: full_transcript_text = json.load(f).get("text", "").strip()
         candidate = {"video_id": video_id, "timestamp": timestamp, "keyframe_id": f"transcript_{timestamp:.2f}s"}
-        return video_clip_path, keyframe_path, full_transcript_text, "", candidate, video_id, str(timestamp), video_path, selected_index
+        link_html = ""
+        if video_path and os.path.exists(video_path):
+            file_url = f"/file={video_path}"
+            link_html = f"<a href='{file_url}' target='_blank' style='color: #4338ca; text-decoration: none;'>🎬 Mở Video Gốc (Toàn bộ) trong Tab mới</a>"
+        return video_clip_path, keyframe_path, full_transcript_text, "", candidate, video_id, str(timestamp), link_html, selected_index
     except Exception as e:
         gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
         traceback.print_exc()
         return empty_return
-
-def get_full_video_path_for_button(video_path):
-    if video_path and os.path.exists(video_path): return video_path
-    gr.Warning("Không tìm thấy đường dẫn video gốc để mở.")
-    return None
 
 def add_to_submission_list(submission_list: list, candidate: dict, response_state: dict, position: str):
     if not candidate:
@@ -139,17 +144,48 @@ def add_to_submission_list(submission_list: list, candidate: dict, response_stat
         gr.Warning(f"Danh sách đã đạt giới hạn {MAX_SUBMISSION_RESULTS} kết quả.")
     return submission_list, format_submission_list_to_csv_string(submission_list)
 
-def add_transcript_result_to_submission(submission_list: list, results_state: pd.DataFrame, evt: gr.SelectData, position: str):
-    if not isinstance(evt, gr.SelectData) or results_state is None or results_state.empty:
-        gr.Warning("Vui lòng chọn một kết quả từ bảng transcript trước khi thêm!")
+def add_transcript_result_to_submission(
+    submission_list: list, 
+    results_state: pd.DataFrame, 
+    selected_index: int, # <-- Nhận vào CHỈ SỐ (int) đã được lưu trong State
+    position: str
+):
+    """
+    Trích xuất thông tin từ dòng DataFrame được chọn (dựa trên chỉ số đã lưu)
+    và thêm vào danh sách nộp bài.
+    """
+    # --- LỚP BẢO VỆ CỐT LÕI ---
+    # Kiểm tra xem người dùng đã thực sự chọn một hàng nào chưa.
+    # `selected_index` sẽ là None nếu chưa có lựa chọn nào được thực hiện.
+    if selected_index is None or results_state is None or results_state.empty:
+        gr.Warning("Vui lòng CHỌN một kết quả từ bảng transcript trước khi thêm!")
+        # Trả về các giá trị hiện tại mà không thay đổi gì
         return submission_list, format_submission_list_to_csv_string(submission_list)
+
     try:
-        selected_index = evt.index[0]
+        # Sử dụng chỉ số đã được lưu trong state để lấy đúng hàng
         selected_row = results_state.iloc[selected_index]
-        candidate = {"video_id": selected_row['video_id'], "timestamp": selected_row['timestamp'], "keyframe_id": f"transcript_{selected_row['timestamp']:.2f}s"}
-        return add_to_submission_list(submission_list, candidate, {"task_type": TaskType.KIS}, position)
-    except Exception as e:
-        gr.Error(f"Lỗi khi thêm kết quả transcript: {e}")
+        
+        # Tạo một dictionary "candidate" để tái sử dụng logic thêm bài đã có
+        candidate = {
+            "video_id": selected_row['video_id'], 
+            "timestamp": selected_row['timestamp'], 
+            "keyframe_path": selected_row['keyframe_path'], # Thêm cả path để nhất quán
+            "keyframe_id": f"transcript_{selected_row['timestamp']:.2f}s" # Tạo ID giả để hiển thị
+        }
+        
+        # Gọi hàm add_to_submission_list chung để xử lý việc thêm và cập nhật giao diện
+        # Truyền vào một response_state giả định vì hàm này cần nó
+        return add_to_submission_list(
+            submission_list, 
+            candidate, 
+            {"task_type": TaskType.KIS}, # Giả định là tác vụ KIS
+            position
+        )
+        
+    except (IndexError, KeyError) as e:
+        # Xử lý trường hợp chỉ số không hợp lệ hoặc dữ liệu có vấn đề
+        gr.Error(f"Lỗi khi thêm kết quả transcript: Chỉ số không hợp lệ hoặc dữ liệu bị lỗi. Lỗi: {e}")
         return submission_list, format_submission_list_to_csv_string(submission_list)
 
 def prepare_submission_for_edit(submission_list: list):
