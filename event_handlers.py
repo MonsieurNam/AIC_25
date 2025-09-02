@@ -104,12 +104,10 @@ def clear_transcript_search():
 def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
     """
     Xử lý khi người dùng chọn một dòng.
-    Sẽ cập nhật video, transcript, keyframe và lưu lại chỉ số được chọn.
-    PHIÊN BẢN SỬA LỖI TƯƠNG THÍCH GRADIO.
+    Sẽ trả về ĐƯỜNG DẪN video, giống như cách Tab Visual hoạt động.
     """
-    # Giá trị trả về mặc định khi có lỗi hoặc không có lựa chọn
-    # Trả về component mới với giá trị None
-    empty_return = gr.Video(value=None), "Click vào một dòng kết quả...", None, None
+    # Giá trị trả về mặc định: không có video, không có text, không có ảnh, không có index
+    empty_return = None, "Click vào một dòng kết quả...", None, None
     
     if evt.value is None or results_state is None or results_state.empty:
         return empty_return
@@ -117,18 +115,18 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
     try:
         selected_row = results_state.iloc[evt.index[0]]
         video_id = selected_row['video_id']
-        timestamp = selected_row['timestamp']
         keyframe_path = selected_row['keyframe_path']
+        
+        # --- 1. Lấy đường dẫn video đầy đủ ---
         video_path = os.path.join(VIDEO_BASE_PATH, f"{video_id}.mp4")
-
-        video_output = gr.Video(value=None) # Giá trị mặc định
+        
+        video_output_path = None # Mặc định là không có video
         if os.path.exists(video_path):
-            # === SỬA LỖI VẤN ĐỀ 3: Trả về một component gr.Video() mới ===
-            video_output = gr.Video(value=video_path, start_time=timestamp)
+            video_output_path = video_path # CHỈ TRẢ VỀ CHUỖI ĐƯỜNG DẪN
         else:
             gr.Warning(f"Không tìm thấy file video: {video_path}")
 
-        # --- Logic tải full transcript (không đổi) ---
+        # --- 2. Logic tải full transcript (không đổi) ---
         full_transcript_text = f"Đang tìm transcript cho video {video_id}..."
         transcript_json_path = os.path.join(TRANSCRIPTS_JSON_DIR, f"{video_id}.json")
         if os.path.exists(transcript_json_path):
@@ -137,10 +135,9 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
                 full_transcript_text = data.get("text", "Lỗi: File JSON không chứa key 'text'.").strip()
         else:
             full_transcript_text = f"Lỗi: Không tìm thấy file transcript tại: {transcript_json_path}"
-        # --- Kết thúc logic transcript ---
         
-        # Trả về 4 giá trị, trong đó giá trị đầu tiên là một component Video mới
-        return video_output, full_transcript_text, keyframe_path, evt.index[0]
+        # 3. Trả về 4 giá trị, trong đó giá trị đầu tiên là một chuỗi đường dẫn (hoặc None)
+        return video_output_path, full_transcript_text, keyframe_path, evt.index[0]
 
     except (IndexError, KeyError) as e:
         gr.Error(f"Lỗi khi xử lý lựa chọn: {e}")
