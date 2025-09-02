@@ -22,7 +22,8 @@ print("--- Giai đoạn 3/4: Đang xây dựng giao diện và kết nối sự 
 search_with_backend = partial(handlers.perform_search, master_searcher=backend_objects['master_searcher'])
 transcript_search_with_backend = partial(handlers.handle_transcript_search, transcript_searcher=backend_objects['transcript_searcher'])
 calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=backend_objects['fps_map'])
-add_transcript_to_submission_with_backend = partial(handlers.add_transcript_result_to_submission)
+
+# add_transcript_to_submission_with_backend = partial(handlers.add_transcript_result_to_submission)
 on_transcript_select_with_backend = partial(
     handlers.on_transcript_select, 
     video_path_map=backend_objects['video_path_map']
@@ -82,7 +83,7 @@ def connect_event_listeners(ui_components):
         ui["transcript_selected_index_state"] 
     ]
     ui["transcript_results_df"].select(
-        fn=on_transcript_select_with_backend, 
+        fn=lambda state, evt: handlers.on_transcript_select(state, evt, backend_objects['video_path_map']), 
         inputs=[ui["transcript_results_state"]], 
         outputs=transcript_select_outputs
     )
@@ -91,11 +92,21 @@ def connect_event_listeners(ui_components):
     transcript_add_inputs = [
         ui["submission_list_state"], 
         ui["transcript_results_state"], 
-        ui["transcript_selected_index_state"] # <-- Input mới: đọc chỉ số từ state
+        ui["transcript_selected_index_state"]
     ]
     transcript_add_outputs = [ui["submission_list_state"], ui["submission_text_editor"]]
-    ui["add_transcript_top_button"].click(fn=add_transcript_to_submission_with_backend, inputs=transcript_add_inputs + [gr.Textbox("top", visible=False)], outputs=transcript_add_outputs)
-    ui["add_transcript_bottom_button"].click(fn=add_transcript_to_submission_with_backend, inputs=transcript_add_inputs + [gr.Textbox("bottom", visible=False)], outputs=transcript_add_outputs)
+    
+    # === SỬA LỖI TẠI ĐÂY: Dùng lambda cho các hàm add vì chúng cũng nhận event data (dù ẩn) ===
+    ui["add_transcript_top_button"].click(
+        fn=lambda sl, rs, si: handlers.add_transcript_result_to_submission(sl, rs, si, "top"),
+        inputs=transcript_add_inputs,
+        outputs=transcript_add_outputs
+    )
+    ui["add_transcript_bottom_button"].click(
+        fn=lambda sl, rs, si: handlers.add_transcript_result_to_submission(sl, rs, si, "bottom"),
+        inputs=transcript_add_inputs,
+        outputs=transcript_add_outputs
+    )
 
     # === 3. SỰ KIỆN DÙNG CHUNG (CỘT PHẢI) ===
     # 3.1. Thêm kết quả từ Visual vào danh sách nộp bài
