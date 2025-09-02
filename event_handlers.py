@@ -85,7 +85,16 @@ def on_gallery_select(response_state: dict, current_page: int, evt: gr.SelectDat
     video_path, timestamp, keyframe_path, video_id = selected_result.get('video_path'), selected_result.get('timestamp', 0.0), selected_result.get('keyframe_path'), selected_result.get('video_id')
     video_clip_path = create_video_segment(video_path, timestamp, duration=30)
     analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
-    return video_clip_path, keyframe_path, "Transcript chỉ hiển thị khi chọn từ Tab 'Tai Thính'.", analysis_html, selected_result, video_id, str(timestamp), video_path
+    return (
+        video_clip_path,                    # video_player
+        keyframe_path,                      # selected_image_display
+        "Transcript chỉ hiển thị khi chọn từ Tab 'Tai Thính'.", # full_transcript_display
+        analysis_html,                      # analysis_display_html
+        selected_result,                    # selected_candidate_for_submission
+        video_id,                           # frame_calculator_video_id
+        str(timestamp),                     # frame_calculator_time_input
+        video_path                          # full_video_path_state
+    )
 
 def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData, video_path_map: dict):
     """
@@ -93,9 +102,9 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData, video_
     Trả về ĐÚNG SỐ LƯỢNG outputs mà app.py cần.
     """
     empty_return = (
-        None, None, "Click vào một dòng kết quả...", "",  # unified_analysis_outputs (4 giá trị đầu)
-        None, "", "0.0", None,                        # unified_analysis_outputs (4 giá trị sau)
-        None                                          # transcript_selected_index_state
+        None, None, "Click vào một dòng kết quả...", "",
+        None, "", "0.0", None,
+        None
     )
     
     if not isinstance(evt, gr.SelectData) or results_state is None or results_state.empty:
@@ -112,16 +121,16 @@ def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData, video_
             with open(transcript_json_path, 'r', encoding='utf-8') as f: full_transcript_text = json.load(f).get("text", "").strip()
         candidate = {"video_id": video_id, "timestamp": timestamp, "keyframe_path": keyframe_path, "keyframe_id": f"transcript_{timestamp:.2f}s"}
         return (
-                    video_clip_path,                    # video_player
-                    keyframe_path,                      # selected_image_display
-                    full_transcript_text,               # full_transcript_display
-                    "",                                 # analysis_display_html (trống)
-                    candidate,                          # selected_candidate_for_submission
-                    video_id,                           # frame_calculator_video_id
-                    str(timestamp),                     # frame_calculator_time_input
-                    video_path,                         # full_video_path_state
-                    selected_index                      # transcript_selected_index_state
-                )    
+            video_clip_path,                    # video_player
+            keyframe_path,                      # selected_image_display
+            full_transcript_text,               # full_transcript_display
+            "",                                 # analysis_display_html (trống)
+            candidate,                          # selected_candidate_for_submission
+            video_id,                           # frame_calculator_video_id
+            str(timestamp),                     # frame_calculator_time_input
+            video_path,                         # full_video_path_state
+            selected_index                      # transcript_selected_index_state
+        )    
     except (IndexError, KeyError, AttributeError) as e: # Bắt thêm AttributeError
         gr.Error(f"Lỗi khi xử lý lựa chọn: {e}")
         return empty_return

@@ -33,8 +33,10 @@ def connect_event_listeners(ui_components):
     full_video_path_state = gr.State()
     
     unified_analysis_outputs = [
-        ui["video_player"], ui["selected_image_display"],
-        ui["full_transcript_display"], ui["analysis_display_html"]
+        ui["video_player"], ui["selected_image_display"], ui["full_transcript_display"],
+        ui["analysis_display_html"], ui["selected_candidate_for_submission"],
+        ui["frame_calculator_video_id"], ui["frame_calculator_time_input"],
+        full_video_path_state
     ]
     
     # ==============================================================================
@@ -80,7 +82,11 @@ def connect_event_listeners(ui_components):
         ui["frame_calculator_time_input"],
         full_video_path_state
     ]
-    ui["results_gallery"].select(fn=handlers.on_gallery_select, inputs=[ui["response_state"], ui["current_page_state"]], outputs=gallery_select_outputs)
+    ui["results_gallery"].select(
+        fn=handlers.on_gallery_select,
+        inputs=[ui["response_state"], ui["current_page_state"]], 
+        outputs=unified_analysis_outputs # Danh sách này đã khớp
+    )
 
     # ==============================================================================
     # === 2. SỰ KIỆN TAB "TAI THÍNH" (TRANSCRIPT INTEL) ===
@@ -105,25 +111,28 @@ def connect_event_listeners(ui_components):
     ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, outputs=transcript_clear_outputs)
 
     # Sử dụng hàm wrapper để xử lý sự kiện select một cách an toàn
-    def on_transcript_select_wrapper(state, evt: gr.SelectData):
-        # Hàm này có thể truy cập `backend_objects` từ scope bên ngoài
+    def on_transcript_select_wrapper(state, evt):
+        if not isinstance(evt, gr.SelectData): # Kiểm tra an toàn
+            return None, None, "Lỗi: Sự kiện không hợp lệ.", "", None, "", "0.0", None, None
         return handlers.on_transcript_select(state, evt, backend_objects['video_path_map'])
         
-    transcript_select_outputs = unified_analysis_outputs + [ui["transcript_selected_index_state"]]
+    transcript_select_outputs = unified_analysis_outputs + [ui["transcript_selected_index_state"]] # Tổng cộng 9
     
-    # Kết nối sự kiện một cách chính xác
     ui["transcript_results_df"].select(
         fn=on_transcript_select_wrapper,
-        # CHỈ có state là input tường minh
         inputs=[ui["transcript_results_state"]],
-        outputs=transcript_select_outputs
+        outputs=transcript_select_outputs # Danh sách này cũng đã khớp
     )
 
     # ==============================================================================
     # === 3. SỰ KIỆN DÙNG CHUNG (CỘT PHẢI) ===
     # ==============================================================================
 
-    ui["view_full_video_button"].click(fn=handlers.get_full_video_path_for_button, inputs=[full_video_path_state], outputs=[ui["submission_file_output"]])
+    ui["view_full_video_button"].click(
+        fn=handlers.get_full_video_path_for_button, 
+        inputs=[full_video_path_state], 
+        outputs=[ui["submission_file_output"]]
+    )
     
     add_outputs = [ui["submission_list_state"], ui["submission_text_editor"]]
     
