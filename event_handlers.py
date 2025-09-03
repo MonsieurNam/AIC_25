@@ -59,14 +59,21 @@ def clear_analysis_panel():
 # === HANDLERS CHÍNH CHO CÁC TAB TÌM KIẾM ===
 # ==============================================================================
 
-def perform_search(query_text: str, num_results: int, w_clip: float, w_obj: float, w_semantic: float, lambda_mmr: float, master_searcher):
+def perform_search(query_text: str, num_results: int, w_clip: float, w_obj: float, w_semantic: float, lambda_mmr: float, initial_retrieval_count: int,master_searcher):
     if not query_text.strip():
         gr.Warning("Vui lòng nhập truy vấn tìm kiếm!")
         return [], "<div style='color: orange;'>⚠️ Vui lòng nhập truy vấn.</div>", None, [], 1, "Trang 1 / 1"
     
     gr.Info("Bắt đầu quét visual...")
     try:
-        config = {"top_k_final": int(num_results), "w_clip": w_clip, "w_obj": w_obj, "w_semantic": w_semantic, "lambda_mmr": lambda_mmr}
+        config = {
+            "top_k_final": int(num_results), 
+            "w_clip": w_clip, 
+            "w_obj": w_obj, 
+            "w_semantic": w_semantic, 
+            "lambda_mmr": lambda_mmr,
+            "kis_retrieval": int(initial_retrieval_count) # <-- ✅ GIÁ TRỊ TỪ SLIDER ĐÃ ĐƯỢC ĐƯA VÀO ĐÂY
+        }
         start_time = time.time()
         full_response = master_searcher.search(query=query_text, config=config)
         search_time = time.time() - start_time

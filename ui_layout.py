@@ -144,6 +144,11 @@ def build_ui(connect_events_fn):
                             w_obj_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.3, step=0.05, label="w_obj (Đối tượng)")
                             w_semantic_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.3, step=0.05, label="w_semantic (Ngữ nghĩa)")
                             lambda_mmr_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.7, step=0.05, label="λ - MMR (Đa dạng hóa)")
+                            initial_retrieval_slider = gr.Slider(
+                                minimum=50, maximum=1000, value=200, step=50,
+                                label="Số lượng ứng viên thô (CLIP/FAISS)",
+                                info="Số lượng kết quả lấy ra ở vòng đầu tiên trước khi rerank. Tăng lên cho query khó, giảm xuống để tăng tốc độ."
+                            )
                         status_output = gr.HTML()
                         gr.Markdown("### 2. Kết quả Visual")
                         with gr.Row(equal_height=True, variant='compact'):
@@ -226,6 +231,7 @@ def build_ui(connect_events_fn):
             "query_input": query_input, "search_button": search_button, "num_results": num_results,
             "w_clip_slider": w_clip_slider, "w_obj_slider": w_obj_slider, "w_semantic_slider": w_semantic_slider,
             "lambda_mmr_slider": lambda_mmr_slider, "clear_button": clear_button,
+            "initial_retrieval_slider": initial_retrieval_slider,
             "status_output": status_output, "prev_page_button": prev_page_button,
             "page_info_display": page_info_display, "next_page_button": next_page_button,
             "results_gallery": results_gallery,
