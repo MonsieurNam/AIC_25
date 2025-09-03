@@ -313,62 +313,54 @@ class GeminiTextHandler:
         self.known_entities_prompt_segment = json.dumps(sorted_entities)
         print(f"--- ✅ GeminiTextHandler: Đã nạp {len(sorted_entities)} thực thể vào bộ nhớ prompt. ---")
 
-    def perform_semantic_grounding(self, user_objects: List[str]) -> List[str]:
+    def perform_semantic_grounding(self, entities_to_ground: List[str]) -> Dict[str, str]:
         """
-        Sử dụng Gemini để "dịch" các đối tượng của người dùng sang các thực thể đã biết.
+        Dịch các nhãn entity tự do về các nhãn chuẩn có trong từ điển.
+        PHIÊN BẢN NÂNG CẤP: Trả về một dictionary mapping: {entity_gốc: entity_đã_dịch}.
         """
-        if not self.known_entities_prompt_segment or not user_objects:
-            return user_objects # Trả về như cũ nếu không có từ điển hoặc không có object
+        if not entities_to_ground or not self.known_entities_prompt_segment:
+            return {}
 
-        prompt = f"""
-        You are an AI assistant for a video search engine. Your task is to map a list of user-provided objects to a predefined list of "known entities".
-
-        Rules:
-        1. For each object in the user's list, find the BEST, most specific, single corresponding entity from the "Known Entities" list.
-        2. If an object is a specific type of a known entity, map it to the general entity (e.g., "poodle" -> "dog", "lamborghini" -> "car").
-        3. If an object is already a known entity, keep it as is.
-        4. If an object has NO reasonable mapping in the known list (e.g., "love", "happiness"), discard it.
-        5. The final list should not have duplicate entities.
-        6. Return ONLY a valid JSON array containing the final, mapped entities. Your entire response must be a single JSON array.
-
-        **Known Entities:**
-        {self.known_entities_prompt_segment}
-
-        **Example 1:**
-        User Objects: ["lamborghini", "a woman in a red shirt", "poodle"]
-        Expected JSON Result: ["car", "woman", "shirt", "dog"]
-
-        **Example 2:**
-        User Objects: ["happiness", "a big cat"]
-        Expected JSON Result: ["cat"]
-        ---
-        **Your Task:**
-        User Objects: {json.dumps(user_objects)}
-        Analyze and produce the JSON Result:
-        """
+        print(f"--- 🧠 Bắt đầu Semantic Grounding cho: {entities_to_ground} ---")
+        
+        # Prompt được thiết kế để yêu cầu Gemini trả về JSON object
+        prompt = (
+            f"You are a helpful assistant. Your task is to map a list of input entities to the closest matching entities from a predefined dictionary. "
+            f"For each input entity, find the single most appropriate term from the dictionary.\n\n"
+            f"**Predefined Dictionary:**\n{self.known_entities_prompt_segment}\n\n"
+            f"**Input Entities to Map:**\n{json.dumps(entities_to_ground)}\n\n"
+            f"Provide your answer ONLY as a valid JSON object mapping each input entity to its corresponding dictionary term. "
+            f"The keys of the JSON must be the original input entities. "
+            f"Example format: {{\"input entity 1\": \"dictionary term 1\", \"input entity 2\": \"dictionary term 2\"}}"
+        )
         
         try:
-            response = self._gemini_text_call(prompt)
-            # Vì đã yêu cầu response_mime_type="application/json", chúng ta có thể parse trực tiếp
-            # response.text sẽ là một chuỗi JSON
-            # Thêm một lớp bảo vệ để trích xuất JSON từ markdown block nếu có
-            raw_text = response.text
-            match = re.search(r"```json\s*(\[.*?\])\s*```", raw_text, re.DOTALL)
-            json_string = match.group(1) if match else raw_text
-
-            mapped_objects = json.loads(json_string)
+            # Sử dụng generation_config đã được định nghĩa trong __init__
+            response = self.model.generate_content(
+                prompt,
+                generation_config=self.generation_config,
+                safety_settings=self.safety_settings
+            )
             
-            if isinstance(mapped_objects, list):
-                # Kiểm tra thêm để đảm bảo các phần tử là string
-                if all(isinstance(item, str) for item in mapped_objects):
-                    return mapped_objects
-            
-            print(f"--- ⚠️ Semantic Grounding: Kết quả trả về không phải là một list of strings. Fallback. Got: {mapped_objects} ---")
-            return user_objects
+            # Xử lý response text để đảm bảo nó là JSON hợp lệ
+            raw_response_text = response.text.strip()
+            if raw_response_text.startswith("```json"):
+                raw_response_text = raw_response_text[7:]
+            if raw_response_text.endswith("```"):
+                raw_response_text = raw_response_text[:-3]
 
-        except (json.JSONDecodeError, ValueError) as e:
-             print(f"--- ⚠️ Semantic Grounding: Không thể parse JSON từ Gemini. Lỗi: {e}. Response: '{response.text}' ---")
-             return user_objects
-        except Exception as e:
-            print(f"--- ❌ Lỗi không xác định trong lúc thực hiện Semantic Grounding: {e} ---")
-            return user_objects
+            # Parse chuỗi JSON thành dictionary
+            grounding_map = json.loads(raw_response_text)
+            print(f"    -> Kết quả Grounding Map: {grounding_map}")
+            
+            # Kiểm tra xem output có phải là dictionary không
+            if not isinstance(grounding_map, dict):
+                print(f"--- ⚠️ Lỗi Grounding: Gemini không trả về dictionary. Fallback. ---")
+                return {}
+
+            return grounding_map
+
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"--- ⚠️ Lỗi trong quá trình Semantic Grounding: {e} ---")
+            # Fallback: Trả về mapping rỗng nếu có lỗi
+            return {}
