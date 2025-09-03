@@ -17,6 +17,7 @@ RERANK_METADATA_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/rerank_metadata_ul
 ALL_ENTITIES_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/all_detection_entities.json')
 VIDEO_BASE_PATH = os.path.join(KAGGLE_INPUT_DIR, 'aic2025-batch-1-video/')
 TRANSCRIPTS_JSON_DIR = os.path.join(KAGGLE_INPUT_DIR, 'aic25-transcripts/transcripts') 
+KEYFRAME_BASE_PATH = os.path.join(KAGGLE_INPUT_DIR, 'aic25-keyframes-and-metadata/keyframes/')
 
 def load_api_keys():
     """

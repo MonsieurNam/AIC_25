@@ -13,7 +13,7 @@ from functools import partial
 from backend_loader import initialize_backend
 from ui_layout import build_ui
 import event_handlers as handlers
-from config import VIDEO_BASE_PATH
+from config import VIDEO_BASE_PATH, KEYFRAME_BASE_PATH 
 
 # --- GIAI ĐOẠN 2: KHỞI TẠO TOÀN BỘ BACKEND ---
 print("--- Giai đoạn 2/4: Đang khởi tạo các Động cơ Backend...")
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     app.launch(
         share=True,
         # Cung cấp các đường dẫn được phép để Gradio có thể phục vụ file video
-        allowed_paths=["/kaggle/input/", "/kaggle/working/","VIDEO_BASE_PATH"],
+        allowed_paths=[VIDEO_BASE_PATH, KEYFRAME_BASE_PATH, "/kaggle/working/"],
         debug=True,
         show_error=True
     )
