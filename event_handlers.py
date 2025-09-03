@@ -282,35 +282,61 @@ def clear_all():
 def handle_view_full_video(selected_candidate: Dict):
     """
     Sao chép video gốc từ /kaggle/input sang /kaggle/working để phát.
-    Đây là giải pháp "Copy-on-Demand".
+    Phiên bản này có log chi tiết để theo dõi quá trình.
     """
+    # === LOG: BẮT ĐẦU QUY TRÌNH ===
+    print("\n" + "="*20 + " LOG: Tải Video Gốc " + "="*20)
+    
+    # 1. Kiểm tra đầu vào
     if not selected_candidate or not isinstance(selected_candidate, dict):
         gr.Warning("Vui lòng chọn một kết quả hợp lệ trước khi xem video gốc.")
+        print("-> [VALIDATION FAILED] selected_candidate không hợp lệ hoặc không phải dict.")
+        print("="*60 + "\n")
         return None
+    
+    video_id = selected_candidate.get('video_id', 'N/A')
+    print(f"-> Nhận lệnh tải video cho: '{video_id}'")
 
+    # 2. Lấy và kiểm tra đường dẫn nguồn
     source_path = selected_candidate.get('video_path')
+    print(f"   -> Đường dẫn nguồn (source): '{source_path}'")
     if not source_path or not os.path.exists(source_path):
-        gr.Error(f"Không tìm thấy file video nguồn trong dữ liệu đã chọn. Path: {source_path}")
+        gr.Error(f"Không tìm thấy file video nguồn tại: {source_path}")
+        print(f"-> [VALIDATION FAILED] Đường dẫn nguồn không tồn tại.")
+        print("="*60 + "\n")
         return None
 
-    # Tạo thư mục đích nếu chưa có
+    # 3. Chuẩn bị đường dẫn đích
     destination_dir = "/kaggle/working/temp_full_videos"
     os.makedirs(destination_dir, exist_ok=True)
-    
-    # Tạo đường dẫn đích
     destination_path = os.path.join(destination_dir, os.path.basename(source_path))
+    print(f"   -> Đường dẫn đích (destination): '{destination_path}'")
 
-    # Sao chép file (chỉ khi nó chưa tồn tại ở đích để tiết kiệm thời gian)
+    # 4. Logic sao chép chính
     if not os.path.exists(destination_path):
-        gr.Info(f"Đang sao chép video {os.path.basename(source_path)} để chuẩn bị phát...")
+        gr.Info(f"Đang sao chép video '{os.path.basename(source_path)}'...")
+        print(f"   -> File chưa tồn tại ở đích. Bắt đầu sao chép...")
+        
+        start_time = time.time() # Bắt đầu đếm giờ
         try:
             shutil.copy(source_path, destination_path)
+            end_time = time.time() # Kết thúc đếm giờ
+            elapsed_time = end_time - start_time
+            
             gr.Success("Sao chép hoàn tất! Bắt đầu phát video.")
+            print(f"   -> ✅ Sao chép thành công sau {elapsed_time:.2f} giây.")
+
         except Exception as e:
             gr.Error(f"Lỗi khi sao chép video: {e}")
+            print(f"   -> ❌ LỖI trong quá trình sao chép: {e}")
+            print("="*60 + "\n")
             return None
     else:
-        gr.Info("Video đã có sẵn, bắt đầu phát.")
+        gr.Info("Video đã có sẵn trong cache, bắt đầu phát.")
+        print("   -> File đã tồn tại ở đích. Bỏ qua bước sao chép.")
 
-    # Trả về đường dẫn mới, an toàn để Gradio phát
+    # 5. Trả kết quả về cho Gradio
+    print(f"-> Hoàn tất. Trả về đường dẫn '{destination_path}' cho Gradio.")
+    print("="*60 + "\n")
+    
     return gr.Video(value=destination_path, label=f"Video Gốc: {os.path.basename(source_path)}")
