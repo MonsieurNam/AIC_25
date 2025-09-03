@@ -39,12 +39,23 @@ transcript_search_with_backend = partial(handlers.handle_transcript_search, tran
 
 # Handlers Hợp nhất cho Trạm Phân tích
 on_gallery_select_with_backend = partial(handlers.on_gallery_select, transcript_searcher=transcript_searcher)
-on_transcript_select_with_backend = partial(
-    handlers.on_transcript_select, 
-    video_path_map=video_path_map,
-    transcript_searcher=transcript_searcher
-)
-
+# on_transcript_select_with_backend = partial(
+#     handlers.on_transcript_select, 
+#     video_path_map=video_path_map,
+#     transcript_searcher=transcript_searcher
+# )
+def on_transcript_select_wrapper(results_state, evt: gr.SelectData):
+    """
+    Hàm bao bọc (wrapper) để gọi handler một cách tường minh.
+    Nó nhận các giá trị từ `inputs` và `evt`, sau đó truyền chúng
+    cùng với các đối tượng backend vào hàm xử lý gốc.
+    """
+    return handlers.on_transcript_select(
+        results_state=results_state,
+        video_path_map=video_path_map,        # Lấy từ scope ngoài
+        transcript_searcher=transcript_searcher,  # Lấy từ scope ngoài
+        evt=evt                               # Truyền `evt` từ Gradio
+    )
 # Handlers cho các Công cụ Phụ trợ
 calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=fps_map)
 add_to_submission_with_backend = partial(handlers.add_to_submission_list, fps_map=fps_map)
@@ -121,7 +132,7 @@ def connect_event_listeners(ui_components):
     
     # 3.2. Sự kiện chọn từ Tai Thính
     ui["transcript_results_df"].select(
-        fn=on_transcript_select_with_backend,
+        fn=on_transcript_select_wrapper,
         inputs=[ui["transcript_results_state"]],
         outputs=analysis_panel_outputs,
     )
