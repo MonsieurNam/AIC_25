@@ -147,7 +147,6 @@ class GeminiTextHandler:
         except Exception:
             return "KIS" # Fallback an toàn
         
-    @api_retrier(max_retries=3, delay=5)
     def analyze_query_fully(self, query: str) -> Dict[str, Any]:
         """
         Phân tích sâu một truy vấn, trích xuất ngữ cảnh, đối tượng, và các quy tắc.
