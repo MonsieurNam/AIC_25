@@ -32,7 +32,10 @@ def initialize_backend():
         print(f"--- ❌ Lỗi nghiêm trọng khi tải model Rerank: {e}. Hệ thống có thể không hoạt động đúng. ---")
         rerank_model = None
     
-    basic_searcher = BasicSearcher(FAISS_INDEX_PATH, RERANK_METADATA_PATH, video_path_map, clip_features_path=CLIP_FEATURES_PATH)
+    basic_searcher = BasicSearcher(
+        faiss_index_path=FAISS_INDEX_PATH, 
+        metadata_path=RERANK_METADATA_PATH
+    )
     master_searcher = MasterSearcher(basic_searcher=basic_searcher, rerank_model=rerank_model, openai_api_key=OPENAI_API_KEY, gemini_api_key=GEMINI_API_KEY, entities_path=ALL_ENTITIES_PATH, clip_features_path=CLIP_FEATURES_PATH)    
     print("--- ✅ MasterSearcher đã sẵn sàng. ---")
 
