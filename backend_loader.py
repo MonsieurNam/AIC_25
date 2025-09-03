@@ -19,10 +19,7 @@ def initialize_backend():
     
     # --- 1. Master Searcher (Visual Scout Engine) ---
     print("--- 1/3: Quét và lập bản đồ đường dẫn video... ---")
-    # all_video_files = glob.glob(os.path.join(VIDEO_BASE_PATH, "**", "*.mp4"), recursive=True)
-    # video_path_map = {os.path.basename(f).replace('.mp4', ''): f for f in all_video_files}
-    new_video_base_path = "/kaggle/working/videos"
-    all_video_files = glob.glob(os.path.join(new_video_base_path, "**", "*.mp4"), recursive=True)
+    all_video_files = glob.glob(os.path.join(VIDEO_BASE_PATH, "**", "*.mp4"), recursive=True)
     video_path_map = {os.path.basename(f).replace('.mp4', ''): f for f in all_video_files}
     print(f"--- ✅ Lập bản đồ thành công cho {len(video_path_map)} video. ---")
     
