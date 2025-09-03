@@ -1,31 +1,81 @@
 import gradio as gr
 
-# --- ĐỊNH NGHĨA CÁC ĐOẠN MÃ GIAO DIỆN TĨNH ---
 custom_css = """
-/* Ẩn footer mặc định của Gradio */
-footer {display: none !important}
-/* Custom styling cho gallery */
-.gallery { border-radius: 12px !important; box-shadow: 0 4px 16px rgba(0,0,0,0.05) !important; }
-/* Đảm bảo gallery chính có thể cuộn được */
-#results-gallery > .gradio-gallery { height: 700px !important; overflow-y: auto !important; }
-/* Animation cho buttons */
-.gradio-button { transition: all 0.2s ease !important; border-radius: 20px !important; font-weight: 600 !important; }
-.gradio-button:hover { transform: translateY(-1px) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
-/* Custom textbox styling */
-.gradio-textbox { border-radius: 10px !important; border: 1px solid #e0e0e0 !important; transition: all 0.2s ease !important; }
-.gradio-textbox:focus { border-color: #667eea !important; box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2) !important; }
-/* Video player styling */
-video { border-radius: 12px !important; }
-/* Hiệu ứng hover cho ảnh trong gallery */
-.gallery img { transition: transform 0.2s ease !important; border-radius: 8px !important; }
-.gallery img:hover { transform: scale(1.04) !important; }
-/* Tùy chỉnh thanh cuộn */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%); }
-/* Sửa lỗi hiển thị khoảng trống cho DataFrame */
-#transcript-dataframe { height: 600px !important; overflow-y: auto !important; }
+/* === CÀI ĐẶT CHUNG & RESET === */
+footer {
+    display: none !important;
+}
+
+/* === STYLING CHO CÁC COMPONENT CHÍNH === */
+.gradio-button {
+    transition: all 0.2s ease !important;
+    border-radius: 20px !important;
+    font-weight: 600 !important;
+}
+.gradio-button:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+.gradio-textbox {
+    border-radius: 10px !important;
+    border: 1px solid #e0e0e0 !important;
+    transition: all 0.2s ease !important;
+}
+.gradio-textbox:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2) !important;
+}
+video {
+    border-radius: 12px !important;
+}
+
+/* === STYLING CHO TAB "MẮT THẦN" (VISUAL SCOUT) === */
+.gallery {
+    border-radius: 12px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.05) !important;
+}
+#results-gallery > .gradio-gallery {
+    height: 700px !important;
+    overflow-y: auto !important;
+}
+.gallery img {
+    transition: transform 0.2s ease !important;
+    border-radius: 8px !important;
+}
+.gallery img:hover {
+    transform: scale(1.04) !important;
+}
+
+/* === STYLING CHO TAB "TAI THÍNH" (TRANSCRIPT INTEL) === */
+#transcript-dataframe {
+    height: 600px !important; /* Đặt chiều cao cố định cho toàn bộ bảng */
+    overflow-y: auto !important; /* Thêm thanh cuộn cho cả bảng nếu cần */
+}
+/* Sửa lỗi giãn dòng, áp dụng cho các ô chứa text */
+#transcript-dataframe table tbody tr td div {
+    max-height: 4.5em !important; /* Giới hạn chiều cao tương đương ~3 dòng text */
+    overflow-y: auto !important; /* Thêm thanh cuộn BÊN TRONG ô nếu nội dung dài */
+    line-height: 1.5em !important; /* Đảm bảo chiều cao dòng nhất quán */
+    white-space: normal !important; /* Cho phép text tự xuống dòng */
+    padding: 4px 6px !important; /* Thêm một chút đệm cho đẹp */
+    text-align: left !important; /* Căn lề trái cho dễ đọc */
+}
+
+/* === TÙY CHỈNH THANH CUỘN (SCROLLBAR) === */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
 """
 
 app_header_html = """
@@ -174,4 +224,4 @@ def build_ui(connect_events_fn):
 
         connect_events_fn(components)
 
-    return app
+    return app, components

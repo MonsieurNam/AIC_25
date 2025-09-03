@@ -36,7 +36,43 @@ except Exception as e:
 # ==============================================================================
 # === CÁC HÀM XỬ LÝ SỰ KIỆN ===
 # ==============================================================================
-
+def generate_full_video_link(video_path: str) -> str:
+    """
+    Tạo một đoạn mã HTML chứa link để mở video gốc trong tab mới.
+    Sử dụng định dạng '/file=' đặc biệt của Gradio để phục vụ file.
+    """
+    if not video_path or not os.path.exists(video_path):
+        return "<p style='color: #888; text-align: center; padding: 10px;'>Chọn một kết quả để xem link video gốc.</p>"
+    
+    # Tạo URL hợp lệ mà Gradio có thể phục vụ
+    file_url = f"/file={video_path}"
+    
+    # Tạo HTML với link và style cho nút bấm
+    return f"""
+    <div style='text-align: center; margin-top: 10px;'>
+        <a href='{file_url}' target='_blank' 
+           style='background-color: #4CAF50; color: white; padding: 10px 15px; text-align: center; text-decoration: none; display: inline-block; border-radius: 8px; font-weight: bold; cursor: pointer;'>
+           🎬 Mở Video Gốc (Toàn bộ) trong Tab mới
+        </a>
+    </div>
+    """
+    
+def get_full_transcript_for_video(video_id: str, transcript_searcher) -> str:
+    """
+    Trích xuất toàn bộ transcript của một video từ TranscriptSearcher.
+    """
+    if not transcript_searcher or transcript_searcher.full_data is None:
+        return "Lỗi: Transcript engine chưa sẵn sàng."
+    
+    try:
+        video_transcripts = transcript_searcher.full_data[
+            transcript_searcher.full_data['video_id'] == video_id
+        ]
+        full_text = " ".join(video_transcripts['transcript_text'].tolist())
+        return full_text if full_text.strip() else "Video này không có lời thoại."
+    except Exception:
+        return "Không thể tải transcript cho video này."
+    
 def clear_analysis_panel():
     return None, None, "", "", None, "", "", ""
 
@@ -94,41 +130,92 @@ def on_gallery_select(response_state: dict, current_page: int, evt: gr.SelectDat
     results = response_state.get("results", [])
     global_index = (current_page - 1) * ITEMS_PER_PAGE + evt.index
     if not results or global_index >= len(results): return empty_return
+    
     selected_result = results[global_index]
-    video_path, timestamp, keyframe_path, video_id = selected_result.get('video_path'), selected_result.get('timestamp', 0.0), selected_result.get('keyframe_path'), selected_result.get('video_id')
-    video_clip_path = create_video_segment(video_path, timestamp, duration=30)
-    analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
-    link_html = ""
-    if video_path and os.path.exists(video_path):
-        # Gradio sẽ phục vụ các file trong allowed_paths
-        # Chúng ta cần tạo một đường dẫn tương đối mà trình duyệt có thể truy cập
-        file_url = f"/file={video_path}"
-        link_html = f"<a href='{file_url}' target='_blank' style='color: #4338ca; text-decoration: none;'>🎬 Mở Video Gốc (Toàn bộ) trong Tab mới</a>"
-    return video_clip_path, keyframe_path, "Transcript chỉ hiển thị khi chọn từ Tab 'Tai Thính'.", analysis_html, selected_result, video_id, str(timestamp), link_html 
+    keyframe_path = selected_result.get('keyframe_path')
+    video_path = selected_result.get('video_path')
+    timestamp = selected_result.get('timestamp', 0.0)
+    video_id = selected_result.get('video_id')
 
-def on_transcript_select(results_state: pd.DataFrame, evt: gr.SelectData):
-    empty_return = (None, None, "Click vào một dòng kết quả...", "", None, "", "0.0", None, None)
-    if not isinstance(evt, gr.SelectData) or results_state is None or results_state.empty: return empty_return
+    # Lấy toàn bộ transcript cho video này
+    full_transcript = get_full_transcript_for_video(video_id, transcript_searcher)
+    
+    # Tạo clip 30 giây
+    video_clip_path = create_video_segment(video_path, timestamp, duration=30)
+    
+    # Tạo HTML hiển thị điểm số
+    analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
+
+    # Tạo link video gốc
+    full_video_link_html = generate_full_video_link(video_path)
+
+    return (
+        keyframe_path,                  # selected_image_display
+        gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"), # video_player
+        full_transcript,                # full_transcript_display
+        analysis_html,                  # analysis_display_html
+        full_video_link_html,           # view_full_video_html
+        selected_result,                # selected_candidate_for_submission
+        video_id,                       # frame_calculator_video_id
+        f"{timestamp:.2f}"              # frame_calculator_time_input (dạng chuỗi)
+    )
+
+def on_transcript_select(
+    results_state: pd.DataFrame, 
+    video_path_map: dict, 
+    transcript_searcher, 
+    evt: gr.SelectData
+):
+    """
+    Xử lý khi chọn một dòng trong DataFrame. Cập nhật TOÀN BỘ Trạm Phân tích.
+    """
+    if evt.value is None or results_state is None or results_state.empty:
+        return None, None, "", "", "", None, "", ""
+
     try:
-        selected_index = evt.index[0]
-        selected_row = results_state.iloc[selected_index]
-        video_id, timestamp, keyframe_path = selected_row['video_id'], selected_row['timestamp'], selected_row['keyframe_path']
-        video_path = VIDEO_PATH_MAP_CACHE.get(video_id)
-        video_clip_path = create_video_segment(video_path, timestamp, duration=30) if video_path and os.path.exists(video_path) else None
-        transcript_json_path = os.path.join(TRANSCRIPTS_JSON_DIR, f"{video_id}.json")
-        full_transcript_text = f"Thông báo: Không có file transcript cho video '{video_id}'."
-        if os.path.exists(transcript_json_path):
-            with open(transcript_json_path, 'r', encoding='utf-8') as f: full_transcript_text = json.load(f).get("text", "").strip()
-        candidate = {"video_id": video_id, "timestamp": timestamp, "keyframe_id": f"transcript_{timestamp:.2f}s"}
-        link_html = ""
-        if video_path and os.path.exists(video_path):
-            file_url = f"/file={video_path}"
-            link_html = f"<a href='{file_url}' target='_blank' style='color: #4338ca; text-decoration: none;'>🎬 Mở Video Gốc (Toàn bộ) trong Tab mới</a>"
-        return video_clip_path, keyframe_path, full_transcript_text, "", candidate, video_id, str(timestamp), link_html, selected_index
-    except Exception as e:
+        selected_row = results_state.iloc[evt.index[0]]
+        video_id = selected_row['video_id']
+        timestamp = selected_row['timestamp']
+        keyframe_path = selected_row['keyframe_path']
+        
+        video_path = video_path_map.get(video_id)
+        if not video_path:
+            gr.Error(f"Không tìm thấy đường dẫn cho video ID: {video_id}")
+            return None, None, "", "", "", None, "", ""
+
+        # Lấy toàn bộ transcript cho video này
+        full_transcript = get_full_transcript_for_video(video_id, transcript_searcher)
+
+        # Tạo clip 30 giây
+        video_clip_path = create_video_segment(video_path, timestamp, duration=30)
+        
+        # Tạo link video gốc
+        full_video_link_html = generate_full_video_link(video_path)
+        
+        # Tạo một dictionary ứng viên giả để thêm vào danh sách nộp bài
+        # (Vì không có điểm số, ta chỉ cần thông tin cơ bản)
+        candidate_for_submission = {
+            "keyframe_id": os.path.basename(keyframe_path).replace('.jpg', ''),
+            "video_id": video_id,
+            "timestamp": timestamp,
+            "keyframe_path": keyframe_path,
+            "final_score": 0.0, # Điểm không xác định
+            "task_type": TaskType.KIS # Mặc định
+        }
+
+        return (
+            keyframe_path,                      # selected_image_display
+            gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"), # video_player
+            full_transcript,                    # full_transcript_display
+            "",                                 # analysis_display_html (Trống vì không có điểm)
+            full_video_link_html,               # view_full_video_html
+            candidate_for_submission,           # selected_candidate_for_submission
+            video_id,                           # frame_calculator_video_id
+            f"{timestamp:.2f}"                  # frame_calculator_time_input (dạng chuỗi)
+        )
+    except (IndexError, KeyError) as e:
         gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
-        traceback.print_exc()
-        return empty_return
+        return None, None, "", "", "", None, "", ""
 
 def add_to_submission_list(submission_list: list, candidate: dict, response_state: dict, position: str):
     if not candidate:
