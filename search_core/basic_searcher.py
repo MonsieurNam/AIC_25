@@ -39,7 +39,7 @@ class BasicSearcher:
             # Chỉ tải các cột cần thiết để tiết kiệm RAM tối đa
             self.metadata = pd.read_parquet(
                 metadata_path, 
-                columns=['keyframe_id', 'video_id', 'timestamp', 'keyframe_path', 'video_path']
+                columns=['keyframe_id', 'video_id', 'timestamp', 'keyframe_path']
             )
             print(f"--- ✅ Tải thành công {self.index.ntotal} vector và metadata tương ứng. ---")
             

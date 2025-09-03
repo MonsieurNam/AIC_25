@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional, List
 import os
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import numpy as np
 from tqdm import tqdm
 
 # Import các module cốt lõi của hệ thống
@@ -29,7 +30,8 @@ class MasterSearcher:
                  gemini_api_key: Optional[str] = None,
                  openai_api_key: Optional[str] = None,
                  entities_path: str = None,
-                clip_features_path: str = None): 
+                 clip_features_path: str = None,
+                 video_path_map: dict = None):
         """
         Khởi tạo MasterSearcher và hệ sinh thái AI lai.
         """
@@ -39,13 +41,14 @@ class MasterSearcher:
         self.mmr_builder: Optional[MMRResultBuilder] = None
         if clip_features_path and os.path.exists(clip_features_path):
             try:
-                all_clip_features = basic_searcher.get_all_clip_features() 
+                print(f"--- 🚚 Đang tải toàn bộ CLIP features cho MMR từ: {clip_features_path} ---")
+                all_clip_features = np.load(clip_features_path)
                 self.mmr_builder = MMRResultBuilder(clip_features=all_clip_features)
             except Exception as e:
                  print(f"--- ⚠️ Lỗi khi khởi tạo MMR Builder: {e}. MMR sẽ bị vô hiệu hóa. ---")
         else:
             print("--- ⚠️ Không tìm thấy file CLIP features, MMR sẽ không hoạt động. ---")
-
+        self.video_path_map = video_path_map
         self.gemini_handler: Optional[GeminiTextHandler] = None
         self.openai_handler: Optional[OpenAIHandler] = None
         self.trake_solver: Optional[TRAKESolver] = None
@@ -244,6 +247,9 @@ class MasterSearcher:
             )
         if task_type in [TaskType.KIS, TaskType.QNA]:
             final_results = self._deduplicate_temporally(final_results, time_threshold=2)
+        if self.video_path_map and task_type in [TaskType.KIS, TaskType.QNA]:
+            for result in final_results:
+                result['video_path'] = self.video_path_map.get(result.get('video_id'))
         # --- BƯỚC 4: ÁP DỤNG MMR ĐỂ TĂNG CƯỜNG ĐA DẠNG ---
         diverse_results = final_results
         if self.mmr_builder and final_results:
