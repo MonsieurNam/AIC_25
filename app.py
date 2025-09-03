@@ -213,7 +213,7 @@ def connect_event_listeners(ui_components):
         ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"],
         # Trạm Phân tích Hợp nhất
         ui["selected_image_display"], ui["video_player"], ui["full_transcript_display"],
-        ui["analysis_display_html"], ui["view_full_video_html"], ui["selected_candidate_for_submission"],
+        ui["analysis_display_html"], ui["selected_candidate_for_submission"],
         # Bảng điều khiển Nộp bài
         ui["submission_list_state"], ui["submission_text_editor"],
         # Máy tính
