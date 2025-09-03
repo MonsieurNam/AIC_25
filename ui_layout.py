@@ -77,7 +77,7 @@ video {
     background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
 }
 mark {
-    background-color: #FFF3A3 !important; /* Một màu vàng nhạt đẹp mắt */
+    background-color: #90EE90 !important; /* Một màu vàng nhạt đẹp mắt */
     padding: 2px 4px;
     border-radius: 4px;
     font-weight: 600;

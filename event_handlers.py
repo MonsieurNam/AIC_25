@@ -152,8 +152,8 @@ def on_gallery_select(response_state: Dict, current_page: int, transcript_search
 
     return (
         keyframe_path, gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"),
-        highlighted_transcript,
-        full_transcript, analysis_html,
+        gr.Markdown(value=highlighted_transcript),
+        analysis_html,
         candidate_for_submission, 
         video_id, f"{timestamp:.2f}", None
     )
@@ -189,7 +189,7 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
             "video_id": video_id,
             "timestamp": timestamp,
             "keyframe_path": keyframe_path,
-            "video_path": video_path,  # <--- ĐÂY LÀ DÒNG SỬA LỖI
+            "video_path": video_path,  
             "final_score": 0.0,
             "task_type": TaskType.KIS
         }
@@ -197,7 +197,7 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
         return (
             keyframe_path, gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"),
             highlighted_transcript,
-            full_transcript, "", 
+            "", 
             candidate_for_submission, video_id, f"{timestamp:.2f}", selected_index
         )
     except (IndexError, KeyError) as e:
