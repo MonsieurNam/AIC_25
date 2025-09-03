@@ -36,7 +36,7 @@ def initialize_backend():
         faiss_index_path=FAISS_INDEX_PATH, 
         metadata_path=RERANK_METADATA_PATH
     )
-    master_searcher = MasterSearcher(basic_searcher=basic_searcher, rerank_model=rerank_model, openai_api_key=OPENAI_API_KEY, gemini_api_key=GEMINI_API_KEY, entities_path=ALL_ENTITIES_PATH, clip_features_path=CLIP_FEATURES_PATH)    
+    master_searcher = MasterSearcher(basic_searcher=basic_searcher, rerank_model=rerank_model, openai_api_key=OPENAI_API_KEY, gemini_api_key=GEMINI_API_KEY, entities_path=ALL_ENTITIES_PATH, clip_features_path=CLIP_FEATURES_PATH, video_path_map=video_path_map)    
     print("--- ✅ MasterSearcher đã sẵn sàng. ---")
 
     # --- 2. Transcript Searcher (Transcript Intel Engine) ---

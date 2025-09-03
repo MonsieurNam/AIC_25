@@ -252,15 +252,13 @@ class MasterSearcher:
                 result['video_path'] = self.video_path_map.get(result.get('video_id'))
         # --- BƯỚC 4: ÁP DỤNG MMR ĐỂ TĂNG CƯỜNG ĐA DẠNG ---
         diverse_results = final_results
-        if self.mmr_builder and final_results:
-            # Lưu ý quan trọng: TRAKE trả về danh sách các chuỗi, không phải các frame đơn lẻ.
-            # MMR chỉ nên áp dụng cho KIS và QNA.
-            if task_type in [TaskType.KIS, TaskType.QNA]:
-                diverse_results = self.mmr_builder.build_diverse_list(
-                    candidates=final_results, 
-                    target_size=len(final_results), # MMR sẽ sắp xếp lại toàn bộ list
-                    lambda_val=lambda_mmr
-                )
+        # if self.mmr_builder and final_results:
+        #     if task_type in [TaskType.KIS, TaskType.QNA]:
+        #         diverse_results = self.mmr_builder.build_diverse_list(
+        #             candidates=final_results, 
+        #             target_size=len(final_results), # MMR sẽ sắp xếp lại toàn bộ list
+        #             lambda_val=lambda_mmr
+        #         )
 
         # Tạm thời chỉ cắt bớt
         final_results_for_submission = diverse_results[:top_k_final]

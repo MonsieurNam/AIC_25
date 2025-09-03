@@ -205,10 +205,7 @@ class GeminiTextHandler:
                             for target in rule['targets']:
                                 if isinstance(target, str):
                                     entities_to_ground.add(target.replace('_', ' '))
-
-                grounded_entities = self.semantic_grounding(list(entities_to_ground))
-                analysis_json['grounded_entities'] = grounded_entities
-                print(f"--- 🧠 Semantic Grounding cho các thực thể không gian: {list(entities_to_ground)} -> {grounded_entities} ---")
+                analysis_json['entities_to_ground'] = list(entities_to_ground)
 
                 return analysis_json
 
