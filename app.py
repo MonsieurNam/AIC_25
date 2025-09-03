@@ -24,7 +24,7 @@ print("--- ✅ Toàn bộ Backend đã được nạp và sẵn sàng chiến đ
 
 print("--- Giai đoạn 3/4: Đang xây dựng giao diện và kết nối sự kiện...")
 search_with_backend = partial(handlers.perform_search, master_searcher=master_searcher)
-transcript_search_with_backend = partial(handlers.handle_transcript_search, transcript_searcher=transcript_searcher)
+transcript_search_with_backend = partial(handlers.handle_transcript_search, transcript_searcher=transcript_searcher, fps_map=fps_map)
 on_gallery_select_with_backend = partial(handlers.on_gallery_select, transcript_searcher=transcript_searcher)
 def on_transcript_select_wrapper(results_state, query1, query2, query3, evt: gr.SelectData):
     return handlers.on_transcript_select(

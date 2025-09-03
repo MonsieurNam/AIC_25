@@ -85,7 +85,7 @@ def perform_search(query_text: str, num_results: int, w_clip: float, w_obj: floa
     
     return initial_gallery_view, status_msg, full_response, gallery_paths, 1, page_info
 
-def handle_transcript_search(query1: str, query2: str, query3: str, transcript_searcher):
+def handle_transcript_search(query1: str, query2: str, query3: str, transcript_searcher, fps_map: dict):
     gr.Info("Bắt đầu điều tra transcript...")
     results = None
     if query1.strip(): results = transcript_searcher.search(query1, current_results=results)
@@ -96,6 +96,8 @@ def handle_transcript_search(query1: str, query2: str, query3: str, transcript_s
         return "Nhập truy vấn để bắt đầu hoặc không tìm thấy kết quả.", pd.DataFrame(), None
         
     count_str = f"Tìm thấy: {len(results)} kết quả."
+    results['fps'] = results['video_id'].map(fps_map).fillna('N/A')
+
     keywords_to_highlight = [q for q in [query1, query2, query3] if q and q.strip()]
     if keywords_to_highlight:
         results['highlighted_text'] = results['transcript_text'].apply(
@@ -103,9 +105,12 @@ def handle_transcript_search(query1: str, query2: str, query3: str, transcript_s
         )
     else:
         results['highlighted_text'] = results['transcript_text']
-    display_df = results[['video_id', 'timestamp', 'highlighted_text', 'keyframe_path']].copy()
+        
+    display_df = results[['video_id', 'fps', 'timestamp', 'highlighted_text', 'keyframe_path']].copy()
+    
     display_df.rename(columns={
         'video_id': 'Video ID',
+        'fps': 'FPS', # <-- Thêm tên cột mới
         'timestamp': 'Timestamp (s)',
         'highlighted_text': 'Nội dung Lời thoại',
         'keyframe_path': 'Keyframe Path'
