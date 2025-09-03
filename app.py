@@ -3,19 +3,16 @@
 # ==============================================================================
 print("--- 🚀 Bắt đầu khởi chạy AIC25 Search Fleet ---")
 
-# --- GIAI ĐOẠN 1: TẢI CÁC THƯ VIỆN CẦN THIẾT ---
 print("--- Giai đoạn 1/4: Đang tải các thư viện cần thiết...")
 import gradio as gr
 import pandas as pd
 from functools import partial
 
-# Local imports - Các module cốt lõi của hạm đội
 from backend_loader import initialize_backend
 from ui_layout import build_ui
 import event_handlers as handlers
 from config import VIDEO_BASE_PATH, KEYFRAME_BASE_PATH 
 
-# --- GIAI ĐOẠN 2: KHỞI TẠO TOÀN BỘ BACKEND ---
 print("--- Giai đoạn 2/4: Đang khởi tạo các Động cơ Backend...")
 backend_objects = initialize_backend()
 master_searcher = backend_objects['master_searcher']
@@ -25,34 +22,18 @@ video_path_map = backend_objects['video_path_map']
 print("--- ✅ Toàn bộ Backend đã được nạp và sẵn sàng chiến đấu. ---")
 
 
-# --- GIAI ĐOẠN 3: XÂY DỰNG GIAO DIỆN & KẾT NỐI MẠCH THẦN KINH ---
 print("--- Giai đoạn 3/4: Đang xây dựng giao diện và kết nối sự kiện...")
-
-# --- Chuẩn bị các hàm xử lý sự kiện bằng `partial` ---
-# Kỹ thuật này "tiêm" các đối tượng backend cần thiết vào hàm xử lý,
-# giúp mã nguồn sạch sẽ và không cần biến toàn cục.
-
-# Handlers cho Mắt Thần (Visual Scout)
 search_with_backend = partial(handlers.perform_search, master_searcher=master_searcher)
-
-# Handlers cho Tai Thính (Transcript Intel)
 transcript_search_with_backend = partial(handlers.handle_transcript_search, transcript_searcher=transcript_searcher)
-
-# Handlers Hợp nhất cho Trạm Phân tích
 on_gallery_select_with_backend = partial(handlers.on_gallery_select, transcript_searcher=transcript_searcher)
-# on_transcript_select_with_backend = partial(
-#     handlers.on_transcript_select, 
-#     video_path_map=video_path_map,
-#     transcript_searcher=transcript_searcher
-# )
 def on_transcript_select_wrapper(results_state, query1, query2, query3, evt: gr.SelectData):
     return handlers.on_transcript_select(
         results_state=results_state, video_path_map=video_path_map,
         transcript_searcher=transcript_searcher,
+        fps_map=fps_map,
         query1=query1, query2=query2, query3=query3, # <-- Thêm các query
         evt=evt
     )
-# Handlers cho các Công cụ Phụ trợ
 calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=fps_map)
 add_to_submission_with_backend = partial(handlers.add_to_submission_list, fps_map=fps_map)
 sync_submission_with_backend = partial(handlers.sync_submission_state_to_editor, fps_map=fps_map)
@@ -63,10 +44,6 @@ def connect_event_listeners(ui_components):
     Đây là "bảng mạch" chính của toàn bộ ứng dụng.
     """
     ui = ui_components # Viết tắt cho gọn
-
-    # === 1. KẾT NỐI SỰ KIỆN CHO TAB "MẮT THẦN" (VISUAL SCOUT) ===
-    
-    # 1.1. Nút Tìm kiếm chính và ô nhập liệu
     visual_search_inputs = [
         ui["query_input"], ui["num_results"], 
         ui["w_clip_slider"], ui["w_obj_slider"], 
@@ -78,8 +55,6 @@ def connect_event_listeners(ui_components):
     ]
     ui["search_button"].click(fn=search_with_backend, inputs=visual_search_inputs, outputs=visual_search_outputs)
     ui["query_input"].submit(fn=search_with_backend, inputs=visual_search_inputs, outputs=visual_search_outputs)
-
-    # 1.2. Nút Phân trang
     page_outputs = [ui["results_gallery"], ui["current_page_state"], ui["page_info_display"]]
     ui["prev_page_button"].click(
         fn=handlers.update_gallery_page,
@@ -93,10 +68,6 @@ def connect_event_listeners(ui_components):
         outputs=page_outputs,
         queue=False
     )
-    
-    # === 2. KẾT NỐI SỰ KIỆN CHO TAB "TAI THÍNH" (TRANSCRIPT INTEL) ===
-    
-    # 2.1. Nút Tìm kiếm và Xóa bộ lọc
     transcript_inputs = [ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"]]
     transcript_outputs = [ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"]]
     ui["transcript_search_button"].click(fn=transcript_search_with_backend, inputs=transcript_inputs, outputs=transcript_outputs)
@@ -106,10 +77,6 @@ def connect_event_listeners(ui_components):
         ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"]
     ]
     ui["transcript_clear_button"].click(fn=handlers.clear_transcript_search, inputs=None, outputs=transcript_clear_outputs, queue=False)
-
-    # === 3. KẾT NỐI SỰ KIỆN HỢP NHẤT CHO TRẠM PHÂN TÍCH (CỘT PHẢI) ===
-    
-    # Định nghĩa các component output ở cột phải MỘT LẦN và dùng chung
     analysis_panel_outputs = [
         ui["selected_image_display"], 
         ui["video_player"],
@@ -120,15 +87,11 @@ def connect_event_listeners(ui_components):
         ui["frame_calculator_time_input"],
         ui["transcript_selected_index_state"]
     ]
-
-    # 3.1. Sự kiện chọn từ Mắt Thần
     ui["results_gallery"].select(
         fn=on_gallery_select_with_backend,
         inputs=[ui["response_state"], ui["current_page_state"], ui["query_input"]],
         outputs=analysis_panel_outputs
     )
-    
-    # 3.2. Sự kiện chọn từ Tai Thính
     ui["transcript_results_df"].select(
         fn=on_transcript_select_wrapper,
         inputs=[
@@ -139,10 +102,6 @@ def connect_event_listeners(ui_components):
         ],
         outputs=analysis_panel_outputs,
     )
-
-    # === 4. KẾT NỐI SỰ KIỆN CHO BẢNG ĐIỀU KHIỂN NỘP BÀI (CỘT PHẢI) ===
-    
-    # 4.1. Thêm kết quả từ Mắt Thần
     ui["add_top_button"].click(
         fn=add_to_submission_with_backend,
         inputs=[ui["submission_list_state"], ui["selected_candidate_for_submission"], gr.Textbox("top", visible=False)],
@@ -153,8 +112,6 @@ def connect_event_listeners(ui_components):
         inputs=[ui["submission_list_state"], ui["selected_candidate_for_submission"], gr.Textbox("bottom", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
-    
-    # 4.2. Thêm kết quả từ Tai Thính
     ui["add_transcript_top_button"].click(
         fn=handlers.add_transcript_result_to_submission,
         inputs=[ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_selected_index_state"], gr.Textbox("top", visible=False)],
@@ -165,8 +122,6 @@ def connect_event_listeners(ui_components):
         inputs=[ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_selected_index_state"], gr.Textbox("bottom", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
-    
-    # 4.3. Cập nhật và Xóa Bảng điều khiển
     ui["refresh_submission_button"].click(
         fn=sync_submission_with_backend,
         inputs=[ui["submission_list_state"]],
@@ -179,65 +134,43 @@ def connect_event_listeners(ui_components):
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]],
         queue=False
     )
-    
-    # === 5. KẾT NỐI SỰ KIỆN CHO CÁC CÔNG CỤ CÒN LẠI (CỘT PHẢI) ===
-    
-    # 5.1. Nút Xem Video Gốc (Logic "Copy-on-Demand")
     ui["view_full_video_button"].click(
         fn=handlers.handle_view_full_video,
         inputs=[ui["selected_candidate_for_submission"]],
         outputs=[ui["full_video_player"]],
         queue=True # Sử dụng queue để không block UI trong lúc copy
     )
-    
-    # 5.2. Máy tính Thời gian & Frame (đổi số thứ tự)
     ui["frame_calculator_button"].click(
         fn=calculate_frame_with_backend,
         inputs=[ui["frame_calculator_video_id"], ui["frame_calculator_time_input"]],
         outputs=[ui["frame_calculator_output"]],
         queue=False
     )
-
-    # 5.3. Xuất File Nộp bài
     ui["submission_button"].click(
         fn=handlers.handle_submission,
         inputs=[ui["submission_text_editor"], ui["query_id_input"]],
         outputs=[ui["submission_file_output"]]
     )
-    
-    # 5.4. Nút Xóa Tất cả
-    # Đây là nút "reset" toàn bộ hệ thống
     clear_all_outputs = [
-        # Mắt Thần
         ui["query_input"], ui["results_gallery"], ui["status_output"], ui["response_state"],
         ui["gallery_items_state"], ui["current_page_state"], ui["page_info_display"],
-        # Tai Thính
         ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"],
         ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"],
-        # Trạm Phân tích Hợp nhất
         ui["selected_image_display"], ui["video_player"], ui["full_transcript_display"],
         ui["analysis_display_html"], ui["selected_candidate_for_submission"],
-        # Bảng điều khiển Nộp bài
         ui["submission_list_state"], ui["submission_text_editor"],
-        # Máy tính
         ui["frame_calculator_video_id"], ui["frame_calculator_time_input"], ui["frame_calculator_output"],
-        # Vùng Xuất file
         ui["query_id_input"], ui["submission_file_output"]
     ]
     ui["clear_button"].click(fn=handlers.clear_all, inputs=None, outputs=clear_all_outputs, queue=False)
 
 
-# --- Xây dựng UI và truyền hàm kết nối sự kiện vào ---
 app, ui_components = build_ui(connect_event_listeners)
 
-# app.load(lambda: video_path_map, inputs=None, outputs=ui_components["video_path_map_state"])
-
-# --- GIAI ĐOẠN 4: KHỞI CHẠY APP SERVER ---
 if __name__ == "__main__":
     print("--- 🚀 Khởi chạy Gradio App Server (Hạm đội Gọng Kìm Kép - Phiên bản Hoàn thiện) ---")
     final_allowed_paths = [VIDEO_BASE_PATH, KEYFRAME_BASE_PATH, "/kaggle/working/"]
     print(f"--- 🔑 Cấp phép truy cập cho các đường dẫn: {final_allowed_paths} ---")
-    # ========================================
 
     app.launch(
         share=True,
