@@ -169,15 +169,24 @@ class SemanticSearcher:
                 if possible_objects.empty:
                     continue # Bỏ qua rule này nếu không có object khớp
 
-                best_object = possible_objects.loc[possible_objects['confidence_score'].idxmax()]
+                best_object_series = possible_objects.loc[possible_objects['confidence_score'].idxmax()]
+                # Chuyển nó thành một dictionary để truy cập an toàn và rõ ràng
+                best_object_dict = best_object_series.to_dict()
                 
-                # --- LOGIC CACHING ---
-                cache_key = f"{keyframe_id}_{target_label}_{best_object['confidence_score']:.4f}"
+                confidence_value = best_object_dict.get('confidence_score', 0.0)
+                bounding_box_value = best_object_dict.get('bounding_box')
+
+                # Kiểm tra xem có bounding box hợp lệ không
+                if not bounding_box_value:
+                    continue
+
+                cache_key = f"{keyframe_id}_{target_label}_{confidence_value:.4f}"
                 object_vector = self.object_vector_cache.get(cache_key)
                 
                 if object_vector is None: # Cache miss
                     try:
-                        cropped_image = crop_image_by_box(cand['keyframe_path'], best_object['bounding_box'])
+                        # Sử dụng bounding_box đã lấy ra
+                        cropped_image = crop_image_by_box(cand['keyframe_path'], bounding_box_value)
                         with torch.no_grad():
                             image_features = self.clip_model.encode(cropped_image, convert_to_tensor=True, device=self.device)
                             image_features /= image_features.norm(dim=-1, keepdim=True)
