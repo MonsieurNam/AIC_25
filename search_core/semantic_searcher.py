@@ -39,7 +39,7 @@ class SemanticSearcher:
         print("--- 🔬 Trang bị công cụ Xác thực Chi tiết... ---")
         # Lấy quyền truy cập vào CLIP model và processor từ BasicSearcher
         self.clip_model = basic_searcher.model
-        self.clip_processor = basic_searcher.processor
+        # self.clip_processor = basic_searcher.processor
         # Khởi tạo Ngân hàng Vector Linh hoạt
         self.object_vector_cache = ObjectVectorCache()
         print("--- ✅ Sẵn sàng hoạt động với bộ nhớ cache. ---")
