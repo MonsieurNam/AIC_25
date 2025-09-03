@@ -161,7 +161,9 @@ def build_ui(connect_events_fn):
                     video_player = gr.Video(label="🎬 Media Player", autoplay=False)
                     full_transcript_display = gr.Textbox(label="📜 Transcript (nếu có)", lines=10, interactive=False, placeholder="Nội dung transcript của video sẽ hiện ở đây...")
                     analysis_display_html = gr.HTML(label="📊 Phân tích Điểm số (cho Visual Search)")
-                    view_full_video_html = gr.HTML(label="🔗 Liên kết Video Gốc")
+                    with gr.Accordion("🎬 Trình phát Video Gốc (Toàn bộ)", open=False):
+                        view_full_video_button = gr.Button("▶️ Tải và Xem Toàn bộ Video Gốc (có thể mất vài giây)")
+                        full_video_player = gr.Video(label="🎬 Video Gốc", interactive=False)
 
                     with gr.Row():
                         add_top_button = gr.Button("➕ Thêm (từ Visual) vào Top 1", variant="primary")
@@ -208,7 +210,7 @@ def build_ui(connect_events_fn):
             # Cột Phải - Trạm Phân tích Hợp nhất
             "selected_image_display": selected_image_display, "video_player": video_player,
             "full_transcript_display": full_transcript_display, "analysis_display_html": analysis_display_html,
-            "view_full_video_html": view_full_video_html, "add_top_button": add_top_button,
+            "view_full_video_button": view_full_video_button, "add_top_button": add_top_button,
             "add_bottom_button": add_bottom_button,
             # Cột Phải - Bảng điều khiển Nộp bài
             "submission_text_editor": submission_text_editor,

@@ -118,7 +118,6 @@ def connect_event_listeners(ui_components):
     analysis_panel_outputs = [
         ui["selected_image_display"], ui["video_player"],
         ui["full_transcript_display"], ui["analysis_display_html"],
-        ui["view_full_video_html"],
         ui["selected_candidate_for_submission"],
         ui["frame_calculator_video_id"], ui["frame_calculator_time_input"],
         ui["transcript_selected_index_state"]
@@ -180,7 +179,15 @@ def connect_event_listeners(ui_components):
     
     # === 5. KẾT NỐI SỰ KIỆN CHO CÁC CÔNG CỤ CÒN LẠI (CỘT PHẢI) ===
     
-    # 5.1. Máy tính Thời gian & Frame
+    # 5.1. Nút Xem Video Gốc (Logic "Copy-on-Demand")
+    ui["view_full_video_button"].click(
+        fn=handlers.handle_view_full_video,
+        inputs=[ui["selected_candidate_for_submission"]],
+        outputs=[ui["full_video_player"]],
+        queue=True # Sử dụng queue để không block UI trong lúc copy
+    )
+    
+    # 5.2. Máy tính Thời gian & Frame (đổi số thứ tự)
     ui["frame_calculator_button"].click(
         fn=calculate_frame_with_backend,
         inputs=[ui["frame_calculator_video_id"], ui["frame_calculator_time_input"]],
@@ -188,14 +195,14 @@ def connect_event_listeners(ui_components):
         queue=False
     )
 
-    # 5.2. Xuất File Nộp bài
+    # 5.3. Xuất File Nộp bài
     ui["submission_button"].click(
         fn=handlers.handle_submission,
         inputs=[ui["submission_text_editor"], ui["query_id_input"]],
         outputs=[ui["submission_file_output"]]
     )
     
-    # 5.3. Nút Xóa Tất cả
+    # 5.4. Nút Xóa Tất cả
     # Đây là nút "reset" toàn bộ hệ thống
     clear_all_outputs = [
         # Mắt Thần

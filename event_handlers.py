@@ -2,6 +2,7 @@
 # === EVENT HANDLERS - PHIÊN BẢN ĐÃ DỌN DẸP VÀ HỢP NHẤT ===
 # ==============================================================================
 from io import StringIO
+import shutil
 import gradio as gr
 import pandas as pd
 import numpy as np
@@ -302,3 +303,39 @@ def clear_all():
         # Vùng Xuất file
         "", None
     )
+    
+def handle_view_full_video(selected_candidate: Dict):
+    """
+    Sao chép video gốc từ /kaggle/input sang /kaggle/working để phát.
+    Đây là giải pháp "Copy-on-Demand".
+    """
+    if not selected_candidate:
+        gr.Warning("Vui lòng chọn một kết quả trước khi xem video gốc.")
+        return None
+
+    source_path = selected_candidate.get('video_path')
+    if not source_path or not os.path.exists(source_path):
+        gr.Error(f"Không tìm thấy file video nguồn tại: {source_path}")
+        return None
+
+    # Tạo thư mục đích nếu chưa có
+    destination_dir = "/kaggle/working/temp_full_videos"
+    os.makedirs(destination_dir, exist_ok=True)
+    
+    # Tạo đường dẫn đích
+    destination_path = os.path.join(destination_dir, os.path.basename(source_path))
+
+    # Sao chép file (chỉ khi nó chưa tồn tại ở đích để tiết kiệm thời gian)
+    if not os.path.exists(destination_path):
+        gr.Info(f"Đang sao chép video {os.path.basename(source_path)} để chuẩn bị phát...")
+        try:
+            shutil.copy(source_path, destination_path)
+            gr.Success("Sao chép hoàn tất! Bắt đầu phát video.")
+        except Exception as e:
+            gr.Error(f"Lỗi khi sao chép video: {e}")
+            return None
+    else:
+        gr.Info("Video đã có sẵn, bắt đầu phát.")
+
+    # Trả về đường dẫn mới, an toàn để Gradio phát
+    return gr.Video(value=destination_path, label=f"Video Gốc: {os.path.basename(source_path)}")
