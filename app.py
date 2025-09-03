@@ -228,7 +228,7 @@ if __name__ == "__main__":
     app.launch(
         share=True,
         # Cung cấp các đường dẫn được phép để Gradio có thể phục vụ file video
-        allowed_paths=["VIDEO_BASE_PATH", "/kaggle/working/"],
+        allowed_paths=["/kaggle/input/", "/kaggle/working/","VIDEO_BASE_PATH"],
         debug=True,
         show_error=True
     )
