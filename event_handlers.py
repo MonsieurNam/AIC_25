@@ -18,7 +18,7 @@ from config import ITEMS_PER_PAGE, MAX_SUBMISSION_RESULTS
 from ui_helpers import create_detailed_info_html
 from search_core.task_analyzer import TaskType
 from utils import create_video_segment, generate_submission_file
-from utils.formatting import format_submission_list_to_csv_string
+from utils.formatting import format_submission_list_to_csv_string, format_results_for_mute_gallery 
 
 # ==============================================================================
 # === CÁC HÀM TRỢ GIÚP ===
