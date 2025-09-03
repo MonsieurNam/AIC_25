@@ -20,7 +20,7 @@ class BasicSearcher:
     def __init__(self, 
                  faiss_index_path: str, 
                  metadata_path: str, 
-                 clip_model_name: str = 'clip-ViT-L-14',
+                 clip_model_name: str = 'clip-ViT-B-32',
                  device: str = "cuda"):
         """
         Khởi tạo BasicSearcher.

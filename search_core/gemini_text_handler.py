@@ -67,21 +67,44 @@ class GeminiTextHandler:
 
     def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash"):
         """
-        Khởi tạo Gemini Text Handler.
-
-        Args:
-            api_key (str): Google API Key.
-            model_name (str): Tên model Gemini sẽ sử dụng.
+        Khởi tạo và xác thực Gemini Text Handler.
+        PHIÊN BẢN ĐÃ SỬA LỖI: Lưu trữ generation_config và safety_settings.
         """
         print(f"--- ✨ Khởi tạo Gemini Text Handler với model: {model_name} ---")
+        
         try:
             genai.configure(api_key=api_key)
             self.model = genai.GenerativeModel(model_name)
-            self.known_entities_prompt_segment = ""
-            self.health_check() # Thực hiện health check ngay khi khởi tạo
+            self.known_entities_prompt_segment: str = "" # Sẽ được nạp sau
+            
+            # --- ✅ LƯU TRỮ CÁC CẤU HÌNH THÀNH THUỘC TÍNH CỦA CLASS ---
+            self.generation_config = {
+                "temperature": 0.1,
+                "top_p": 0.95,
+                "top_k": 64,
+                "max_output_tokens": 8192,
+                "response_mime_type": "application/json",
+            }
+            
+            # Cấu hình an toàn để tránh bị block do các nội dung nhạy cảm
+            self.safety_settings = {
+                'HATE': 'BLOCK_NONE',
+                'HARASSMENT': 'BLOCK_NONE',
+                'SEXUAL': 'BLOCK_NONE',
+                'DANGEROUS': 'BLOCK_NONE'
+            }
+            
+            # --- Xác thực API Key bằng một lệnh gọi nhỏ ---
+            print("--- 🩺 Đang thực hiện kiểm tra trạng thái API Gemini... ---")
+            # Lệnh gọi đơn giản để kiểm tra xem API key có hoạt động không
+            self.model.count_tokens("test") 
+            print("--- ✅ Trạng thái API Gemini: OK ---")
             print("--- ✅ Gemini Text Handler đã được khởi tạo và xác thực thành công! ---")
+
         except Exception as e:
-            print(f"--- ❌ Lỗi nghiêm trọng khi khởi tạo Gemini Text Handler: {e} ---")
+            print(f"--- ❌ Lỗi nghiêm trọng khi khởi tạo Gemini Handler: {e} ---")
+            print("    -> Vui lòng kiểm tra lại API Key và kết nối mạng.")
+            # Ném lại lỗi để quá trình khởi tạo backend có thể dừng lại nếu cần
             raise e
 
     @api_retrier(max_retries=3, initial_delay=1)
