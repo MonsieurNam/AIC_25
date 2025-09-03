@@ -47,7 +47,8 @@ on_transcript_select_with_backend = partial(
 
 # Handlers cho các Công cụ Phụ trợ
 calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=fps_map)
-
+add_to_submission_with_backend = partial(handlers.add_to_submission_list, fps_map=fps_map)
+sync_submission_with_backend = partial(handlers.sync_submission_state_to_editor, fps_map=fps_map)
 
 def connect_event_listeners(ui_components):
     """
@@ -129,12 +130,12 @@ def connect_event_listeners(ui_components):
     
     # 4.1. Thêm kết quả từ Mắt Thần
     ui["add_top_button"].click(
-        fn=handlers.add_to_submission_list,
+        fn=add_to_submission_with_backend,
         inputs=[ui["submission_list_state"], ui["selected_candidate_for_submission"], gr.Textbox("top", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
     ui["add_bottom_button"].click(
-        fn=handlers.add_to_submission_list,
+        fn=add_to_submission_with_backend,
         inputs=[ui["submission_list_state"], ui["selected_candidate_for_submission"], gr.Textbox("bottom", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
@@ -153,7 +154,7 @@ def connect_event_listeners(ui_components):
     
     # 4.3. Cập nhật và Xóa Bảng điều khiển
     ui["refresh_submission_button"].click(
-        fn=handlers.sync_submission_state_to_editor,
+        fn=sync_submission_with_backend,
         inputs=[ui["submission_list_state"]],
         outputs=[ui["submission_text_editor"]],
         queue=False
@@ -207,7 +208,7 @@ def connect_event_listeners(ui_components):
 # --- Xây dựng UI và truyền hàm kết nối sự kiện vào ---
 app, ui_components = build_ui(connect_event_listeners)
 
-app.load(lambda: video_path_map, inputs=None, outputs=ui_components["video_path_map_state"])
+# app.load(lambda: video_path_map, inputs=None, outputs=ui_components["video_path_map_state"])
 
 # --- GIAI ĐOẠN 4: KHỞI CHẠY APP SERVER ---
 if __name__ == "__main__":
