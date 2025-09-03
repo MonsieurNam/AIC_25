@@ -110,6 +110,9 @@ def on_gallery_select(response_state: Dict, current_page: int, transcript_search
     print(f"-> Retrieved video_path from selected_result: '{video_path}'")
     print("="*65 + "\n")
     
+    selected_result = results[global_index]
+    video_id = selected_result.get('video_id')
+    video_path = selected_result.get('video_path') # Đã có sẵn video_path
     keyframe_path = selected_result.get('keyframe_path')
     timestamp = selected_result.get('timestamp', 0.0)
     
@@ -117,10 +120,13 @@ def on_gallery_select(response_state: Dict, current_page: int, transcript_search
     video_clip_path = create_video_segment(video_path, timestamp, duration=30)
     analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
 
+    candidate_for_submission = selected_result
+
     return (
         keyframe_path, gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"),
-        full_transcript, analysis_html, 
-        selected_result, video_id, f"{timestamp:.2f}", None
+        full_transcript, analysis_html,
+        candidate_for_submission, 
+        video_id, f"{timestamp:.2f}", None
     )
 
 def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, transcript_searcher, evt: gr.SelectData):
@@ -149,8 +155,12 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
         
         candidate_for_submission = {
             "keyframe_id": os.path.basename(keyframe_path).replace('.jpg', ''),
-            "video_id": video_id, "timestamp": timestamp, "keyframe_path": keyframe_path,
-            "final_score": 0.0, "task_type": TaskType.KIS # Mặc định
+            "video_id": video_id,
+            "timestamp": timestamp,
+            "keyframe_path": keyframe_path,
+            "video_path": video_path,  # <--- ĐÂY LÀ DÒNG SỬA LỖI
+            "final_score": 0.0,
+            "task_type": TaskType.KIS
         }
 
         return (
