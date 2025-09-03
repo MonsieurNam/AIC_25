@@ -196,7 +196,7 @@ def generate_submission_file(df: pd.DataFrame, query_id: str, output_dir: str = 
         return "Không có dữ liệu để tạo file."
 
     os.makedirs(output_dir, exist_ok=True)
-    file_path = os.path.join(output_dir, f"{query_id}_submission.csv")
+    file_path = os.path.join(output_dir, f"{query_id}.csv")
     
     df.to_csv(file_path, header=False, index=False)
     
