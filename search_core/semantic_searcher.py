@@ -80,6 +80,7 @@ class SemanticSearcher:
             
             # Lặp qua từng quy tắc mà Gemini đã cung cấp
             for rule in spatial_rules:
+                
                 entity_label = rule['entity'].replace('_', ' ')
                 relation = rule['relation']
                 target_labels = [t.replace('_', ' ') for t in rule['targets']]
@@ -87,6 +88,9 @@ class SemanticSearcher:
                 # Lấy ra tất cả các bounding box của các object có liên quan trong rule này
                 # Chúng ta sẽ tìm các label chứa (contains) entity_label, ví dụ "man" sẽ khớp với "man black shirt"
                 entity_boxes = keyframe_objects[keyframe_objects['object_label'].str.contains(entity_label, case=False)]['bounding_box'].tolist()
+                
+                print(f"Kiểm tra rule: {rule}")
+                print(f" -> Tìm box cho entity: '{entity_label}'. Tìm thấy: {len(entity_boxes)}")
                 
                 target_boxes_lists = []
                 for label in target_labels:
@@ -177,7 +181,7 @@ class SemanticSearcher:
                 bounding_box_value = best_object_dict.get('bounding_box')
 
                 # Kiểm tra xem có bounding box hợp lệ không
-                if not bounding_box_value:
+                if bounding_box_value is None:
                     continue
 
                 cache_key = f"{keyframe_id}_{target_label}_{confidence_value:.4f}"
