@@ -149,7 +149,6 @@ def on_gallery_select(response_state: Dict, current_page: int, query_text: str, 
     
     full_transcript = get_full_transcript_for_video(video_id, transcript_searcher)
     
-    # TÔ SÁNG DỰA TRÊN QUERY_TEXT (tham số đã được sửa đúng vị trí)
     highlighted_transcript = highlight_keywords(full_transcript, [query_text])
     
     video_clip_path = create_video_segment(video_path, timestamp, duration=30)

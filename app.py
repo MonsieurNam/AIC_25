@@ -25,12 +25,21 @@ print("--- ✅ Toàn bộ Backend đã được nạp và sẵn sàng chiến đ
 print("--- Giai đoạn 3/4: Đang xây dựng giao diện và kết nối sự kiện...")
 search_with_backend = partial(handlers.perform_search, master_searcher=master_searcher)
 transcript_search_with_backend = partial(handlers.handle_transcript_search, transcript_searcher=transcript_searcher, fps_map=fps_map)
-on_gallery_select_with_backend = partial(handlers.on_gallery_select, transcript_searcher=transcript_searcher)
+# on_gallery_select_with_backend = partial(handlers.on_gallery_select, transcript_searcher=transcript_searcher)
 def on_transcript_select_wrapper(results_state, query1, query2, query3, evt: gr.SelectData):
     return handlers.on_transcript_select(
         results_state=results_state, video_path_map=video_path_map,
         transcript_searcher=transcript_searcher,
         query1=query1, query2=query2, query3=query3, # <-- Thêm các query
+        evt=evt
+    )
+    
+def on_gallery_select_wrapper(response_state, current_page, query_input, evt: gr.SelectData):
+    return handlers.on_gallery_select(
+        response_state=response_state,
+        current_page=current_page,
+        query_text=query_input,
+        transcript_searcher=transcript_searcher, # Lấy từ scope ngoài
         evt=evt
     )
 calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=fps_map)
@@ -87,7 +96,7 @@ def connect_event_listeners(ui_components):
         ui["transcript_selected_index_state"]
     ]
     ui["results_gallery"].select(
-        fn=on_gallery_select_with_backend,
+        fn=on_gallery_select_wrapper,
         inputs=[ui["response_state"], ui["current_page_state"], ui["query_input"]],
         outputs=analysis_panel_outputs
     )
