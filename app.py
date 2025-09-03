@@ -111,10 +111,13 @@ def connect_event_listeners(ui_components):
     
     # Định nghĩa các component output ở cột phải MỘT LẦN và dùng chung
     analysis_panel_outputs = [
-        ui["selected_image_display"], ui["video_player"],
-        ui["full_transcript_display"], ui["analysis_display_html"],
+        ui["selected_image_display"], 
+        ui["video_player"],
+        ui["full_transcript_display"], 
+        ui["analysis_display_html"],
         ui["selected_candidate_for_submission"],
-        ui["frame_calculator_video_id"], ui["frame_calculator_time_input"],
+        ui["frame_calculator_video_id"], 
+        ui["frame_calculator_time_input"],
         ui["transcript_selected_index_state"]
     ]
 

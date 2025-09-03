@@ -82,6 +82,15 @@ mark {
     border-radius: 4px;
     font-weight: 600;
 }
+#full-transcript-box {
+    max-height: 300px; /* Chiều cao tối đa của hộp. Bạn có thể điều chỉnh con số này. */
+    overflow-y: auto !important; /* Tự động hiển thị thanh cuộn dọc KHI CẦN THIẾT. */
+    padding: 15px; /* Thêm một chút đệm cho đẹp mắt. */
+    border: 1px solid #e5e7eb; /* Thêm đường viền để phân biệt. */
+    border-radius: 8px; /* Bo tròn các góc. */
+    background-color: #f8f9fa; /* Một màu nền rất nhạt. */
+    line-height: 1.6; /* Tăng khoảng cách giữa các dòng cho dễ đọc. */
+}
 """
 
 app_header_html = """
@@ -165,7 +174,11 @@ def build_ui(connect_events_fn):
                 with gr.Accordion("Media Player & Phân tích", open=True):
                     selected_image_display = gr.Image(label="🖼️ Keyframe được chọn", type="filepath")
                     video_player = gr.Video(label="🎬 Media Player", autoplay=False)
-                    full_transcript_display = gr.Markdown(label="📜 Transcript (nếu có)", value="Nội dung transcript của video sẽ hiện ở đây...")
+                    full_transcript_display = gr.Markdown(
+                        label="📜 Transcript (nếu có)", 
+                        value="Nội dung transcript của video sẽ hiện ở đây...",
+                        elem_id="full-transcript-box" # <-- Thêm dòng này
+                    )
                     analysis_display_html = gr.HTML(label="📊 Phân tích Điểm số (cho Visual Search)")
                     with gr.Accordion("🎬 Trình phát Video Gốc (Toàn bộ)", open=True):
                         view_full_video_button = gr.Button("▶️ Tải và Xem Toàn bộ Video Gốc (có thể mất vài giây)")
