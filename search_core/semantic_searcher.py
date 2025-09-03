@@ -90,18 +90,19 @@ class SemanticSearcher:
                 relation = rule['relation']
                 targets_original = [t.replace('_', ' ') for t in rule['targets']]
                 
-                # --- SỬ DỤNG BẢN ĐỒ DỊCH (GROUNDING MAP) ---
-                # Ưu tiên dùng nhãn đã được dịch, nếu không có thì dùng nhãn gốc
-                entity_grounded = grounding_map.get(entity_original, entity_original)
-                targets_grounded = [grounding_map.get(t, t) for t in targets_original]
-                
-                # Lấy ra tất cả các bounding box của các object đã được "dịch"
-                # Tìm kiếm chính xác (==) thay vì chứa (contains) để tăng độ chính xác
-                entity_boxes = keyframe_objects[keyframe_objects['object_label'] == entity_grounded]['bounding_box'].tolist()
-                
+                entity_grounded = grounding_map.get(entity_original, entity_original).lower() # <-- .lower()
+                targets_grounded = [grounding_map.get(t, t).lower() for t in targets_original] # <-- .lower()
+
+                # Chuẩn hóa cột object_label về chữ thường MỘT LẦN cho mỗi keyframe
+                keyframe_objects_lower = keyframe_objects.copy()
+                keyframe_objects_lower['object_label'] = keyframe_objects_lower['object_label'].str.lower()
+
+                # Tìm kiếm trên cột đã được chuẩn hóa
+                entity_boxes = keyframe_objects_lower[keyframe_objects_lower['object_label'] == entity_grounded]['bounding_box'].tolist()
+
                 target_boxes_lists = []
                 for label in targets_grounded:
-                    boxes = keyframe_objects[keyframe_objects['object_label'] == label]['bounding_box'].tolist()
+                    boxes = keyframe_objects_lower[keyframe_objects_lower['object_label'] == label]['bounding_box'].tolist()
                     target_boxes_lists.append(boxes)
 
                 # Nếu thiếu bất kỳ loại object nào, không thể thỏa mãn rule -> bỏ qua
@@ -185,16 +186,19 @@ class SemanticSearcher:
                     continue # Bỏ qua rule này nếu không có object khớp
 
                 best_object_series = possible_objects.loc[possible_objects['confidence_score'].idxmax()]
-                # Chuyển nó thành một dictionary để truy cập an toàn và rõ ràng
+                # Chuyển nó thành một dictionary để truy cập
                 best_object_dict = best_object_series.to_dict()
-                
-                confidence_value = best_object_dict.get('confidence_score', 0.0)
-                bounding_box_value = best_object_dict.get('bounding_box')
 
-                # Kiểm tra xem có bounding box hợp lệ không
-                if bounding_box_value is None:
+                # --- ✅ BẮT ĐẦU SỬA LỖI TẠI ĐÂY ---
+
+                # Lấy giá trị và ÉP KIỂU tường minh sang kiểu gốc của Python
+                confidence_value = float(best_object_dict.get('confidence_score', 0.0))
+                bounding_box_value = list(best_object_dict.get('bounding_box', []))
+
+                if not bounding_box_value:
                     continue
 
+                # Dòng này giờ sẽ hoàn toàn an toàn
                 cache_key = f"{keyframe_id}_{target_label}_{confidence_value:.4f}"
                 object_vector = self.object_vector_cache.get(cache_key)
                 
