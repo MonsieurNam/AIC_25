@@ -276,10 +276,12 @@ class SemanticSearcher:
 
         # --- TẦNG 2: BỘ LỌC QUAN HỆ KHÔNG GIAN ---
         spatial_rules = precomputed_analysis.get('spatial_rules', [])
-        grounded_entities = precomputed_analysis.get('grounded_entities', []) # Có thể dùng trong tương lai
         
-        candidates_after_spatial = self._apply_spatial_filter(candidates, spatial_rules, grounded_entities)
-
+        candidates_after_spatial = self._apply_spatial_filter(
+            candidates=candidates, 
+            spatial_rules=spatial_rules, 
+            precomputed_analysis=precomputed_analysis
+        )
 
         # --- TẦNG 3: BỘ LỌC XÁC THỰC CHI TIẾT ---
         verification_rules = precomputed_analysis.get('fine_grained_verification', [])
