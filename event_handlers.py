@@ -157,7 +157,8 @@ def on_gallery_select(response_state: dict, current_page: int, evt: gr.SelectDat
         full_video_link_html,           # view_full_video_html
         selected_result,                # selected_candidate_for_submission
         video_id,                       # frame_calculator_video_id
-        f"{timestamp:.2f}"              # frame_calculator_time_input (dạng chuỗi)
+        f"{timestamp:.2f}" ,
+        None  
     )
 
 def on_transcript_select(
@@ -202,7 +203,7 @@ def on_transcript_select(
             "final_score": 0.0, # Điểm không xác định
             "task_type": TaskType.KIS # Mặc định
         }
-
+        selected_index = evt.index[0]
         return (
             keyframe_path,                      # selected_image_display
             gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"), # video_player
@@ -211,11 +212,12 @@ def on_transcript_select(
             full_video_link_html,               # view_full_video_html
             candidate_for_submission,           # selected_candidate_for_submission
             video_id,                           # frame_calculator_video_id
-            f"{timestamp:.2f}"                  # frame_calculator_time_input (dạng chuỗi)
+            f"{timestamp:.2f}",                  # frame_calculator_time_input (dạng chuỗi)
+            selected_index  
         )
     except (IndexError, KeyError) as e:
         gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
-        return None, None, "", "", "", None, "", ""
+        return None, None, "", "", "", None, "", "", None
 
 def add_to_submission_list(submission_list: list, candidate: dict, response_state: dict, position: str):
     if not candidate:

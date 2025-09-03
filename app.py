@@ -107,7 +107,8 @@ def connect_event_listeners(ui_components):
         ui["full_transcript_display"], ui["analysis_display_html"],
         ui["view_full_video_html"],
         ui["selected_candidate_for_submission"],
-        ui["frame_calculator_video_id"], ui["frame_calculator_time_input"]
+        ui["frame_calculator_video_id"], ui["frame_calculator_time_input"],
+        ui["transcript_selected_index_state"]
     ]
 
     # 3.1. Sự kiện chọn từ Mắt Thần
@@ -122,8 +123,6 @@ def connect_event_listeners(ui_components):
         fn=on_transcript_select_with_backend,
         inputs=[ui["transcript_results_state"]],
         outputs=analysis_panel_outputs,
-        # Lưu lại chỉ số dòng được chọn để thêm vào danh sách nộp bài
-        outputs_additional=[ui["transcript_selected_index_state"]]
     )
 
     # === 4. KẾT NỐI SỰ KIỆN CHO BẢNG ĐIỀU KHIỂN NỘP BÀI (CỘT PHẢI) ===
