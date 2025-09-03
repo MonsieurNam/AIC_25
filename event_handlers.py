@@ -23,29 +23,6 @@ from utils.formatting import format_submission_list_to_csv_string
 # === CÁC HÀM TRỢ GIÚP ===
 # ==============================================================================
 
-def generate_full_video_link(video_path: str) -> str:
-    # === DEBUG LOG: KIỂM TRA PATH CUỐI CÙNG TRƯỚC KHI TẠO URL ===
-    print("\n" + "="*20 + " DEBUG LOG: generate_full_video_link " + "="*20)
-    print(f"-> Input video_path: '{video_path}' (Type: {type(video_path)})")
-    # === KẾT THÚC DEBUG LOG ===
-    
-    if not video_path or not os.path.exists(video_path):
-        # === DEBUG LOG: PATH KHÔNG HỢP LỆ HOẶC KHÔNG TỒN TẠI ===
-        print(f"-> VALIDATION FAILED: Path is None, empty, or does not exist.")
-        print("="*73 + "\n")
-        # === KẾT THÚC DEBUG LOG ===
-        return "<p style='color: #888; text-align: center; padding: 10px;'>Chọn một kết quả để xem link video gốc.</p>"
-    
-    file_url = f"/file={video_path}"
-    
-    # === DEBUG LOG: KIỂM TRA URL ĐƯỢC TẠO RA ===
-    print(f"-> Generated file_url: '{file_url}'")
-    print(f"-> Path exists: {os.path.exists(video_path)}")
-    print("="*73 + "\n")
-    # === KẾT THÚC DEBUG LOG ===
-    
-    return f"""<div style='text-align: center; margin-top: 10px;'><a href='{file_url}' target='_blank' style='background-color: #4CAF50; color: white; padding: 10px 15px; text-align: center; text-decoration: none; display: inline-block; border-radius: 8px; font-weight: bold; cursor: pointer;'>🎬 Mở Video Gốc (Toàn bộ) trong Tab mới</a></div>"""
-
 def get_full_transcript_for_video(video_id: str, transcript_searcher) -> str:
     if not transcript_searcher or transcript_searcher.full_data is None: return "Lỗi: Transcript engine chưa sẵn sàng."
     try:
@@ -139,11 +116,10 @@ def on_gallery_select(response_state: Dict, current_page: int, transcript_search
     full_transcript = get_full_transcript_for_video(video_id, transcript_searcher)
     video_clip_path = create_video_segment(video_path, timestamp, duration=30)
     analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
-    full_video_link_html = generate_full_video_link(video_path)
 
     return (
         keyframe_path, gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"),
-        full_transcript, analysis_html, full_video_link_html,
+        full_transcript, analysis_html, 
         selected_result, video_id, f"{timestamp:.2f}", None
     )
 
@@ -170,7 +146,6 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
 
         full_transcript = get_full_transcript_for_video(video_id, transcript_searcher)
         video_clip_path = create_video_segment(video_path, timestamp, duration=30)
-        full_video_link_html = generate_full_video_link(video_path)
         
         candidate_for_submission = {
             "keyframe_id": os.path.basename(keyframe_path).replace('.jpg', ''),
@@ -180,7 +155,7 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
 
         return (
             keyframe_path, gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"),
-            full_transcript, "", full_video_link_html,
+            full_transcript, "", 
             candidate_for_submission, video_id, f"{timestamp:.2f}", selected_index
         )
     except (IndexError, KeyError) as e:
@@ -309,13 +284,13 @@ def handle_view_full_video(selected_candidate: Dict):
     Sao chép video gốc từ /kaggle/input sang /kaggle/working để phát.
     Đây là giải pháp "Copy-on-Demand".
     """
-    if not selected_candidate:
-        gr.Warning("Vui lòng chọn một kết quả trước khi xem video gốc.")
+    if not selected_candidate or not isinstance(selected_candidate, dict):
+        gr.Warning("Vui lòng chọn một kết quả hợp lệ trước khi xem video gốc.")
         return None
 
     source_path = selected_candidate.get('video_path')
     if not source_path or not os.path.exists(source_path):
-        gr.Error(f"Không tìm thấy file video nguồn tại: {source_path}")
+        gr.Error(f"Không tìm thấy file video nguồn trong dữ liệu đã chọn. Path: {source_path}")
         return None
 
     # Tạo thư mục đích nếu chưa có
