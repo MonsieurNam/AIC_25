@@ -143,6 +143,16 @@ def build_ui(connect_events_fn):
                             w_clip_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.4, step=0.05, label="w_clip (Thị giác)")
                             w_obj_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.3, step=0.05, label="w_obj (Đối tượng)")
                             w_semantic_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.3, step=0.05, label="w_semantic (Ngữ nghĩa)")
+                            w_spatial_slider = gr.Slider(
+                                minimum=0.0, maximum=1.0, value=0.25, step=0.05,
+                                label="w - Trọng số Không gian (Spatial)",
+                                info="Ưu tiên các kết quả có bố cục không gian (ở giữa, phía sau...) đúng như mô tả."
+                            )
+                            w_fine_grained_slider = gr.Slider(
+                                minimum=0.0, maximum=1.0, value=0.25, step=0.05,
+                                label="w - Trọng số Chi tiết (Fine-grained)",
+                                info="Ưu tiên các kết quả khớp với mô tả chi tiết về đối tượng (màu mắt, hoa văn...)."
+                            )
                             lambda_mmr_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.7, step=0.05, label="λ - MMR (Đa dạng hóa)")
                             initial_retrieval_slider = gr.Slider(
                                 minimum=50, maximum=1000, value=200, step=50,
@@ -232,6 +242,8 @@ def build_ui(connect_events_fn):
             "w_clip_slider": w_clip_slider, "w_obj_slider": w_obj_slider, "w_semantic_slider": w_semantic_slider,
             "lambda_mmr_slider": lambda_mmr_slider, "clear_button": clear_button,
             "initial_retrieval_slider": initial_retrieval_slider,
+            "w_spatial_slider": w_spatial_slider, 
+            "w_fine_grained_slider": w_fine_grained_slider, 
             "status_output": status_output, "prev_page_button": prev_page_button,
             "page_info_display": page_info_display, "next_page_button": next_page_button,
             "results_gallery": results_gallery,

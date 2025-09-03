@@ -55,32 +55,50 @@ def clear_analysis_panel():
     """Helper để xóa các component trong cột phải."""
     return None, None, "", "", "", None, "", "", None
 
-# ==============================================================================
-# === HANDLERS CHÍNH CHO CÁC TAB TÌM KIẾM ===
-# ==============================================================================
 
-def perform_search(query_text: str, num_results: int, w_clip: float, w_obj: float, w_semantic: float, lambda_mmr: float, initial_retrieval_count: int,master_searcher):
+def perform_search(
+    # --- Các tham số cũ ---
+    query_text: str, num_results: int, 
+    w_clip: float, w_obj: float, w_semantic: float, 
+    lambda_mmr: float, initial_retrieval_count: int,
+    # --- ✅ Các tham số mới từ slider ---
+    w_spatial: float, w_fine_grained: float,
+    # --- Backend object từ partial ---
+    master_searcher
+):
+    """
+    Hàm xử lý sự kiện tìm kiếm chính - Phiên bản PHOENIX hoàn thiện.
+    """
     if not query_text.strip():
         gr.Warning("Vui lòng nhập truy vấn tìm kiếm!")
         return [], "<div style='color: orange;'>⚠️ Vui lòng nhập truy vấn.</div>", None, [], 1, "Trang 1 / 1"
     
-    gr.Info("Bắt đầu quét visual...")
+    gr.Info("🚀 Kích hoạt quy trình tìm kiếm đa tầng PHOENIX...")
+    
     try:
+        # Đóng gói TOÀN BỘ cấu hình vào một dictionary duy nhất
         config = {
-            "top_k_final": int(num_results), 
-            "w_clip": w_clip, 
-            "w_obj": w_obj, 
-            "w_semantic": w_semantic, 
+            "top_k_final": int(num_results),
+            "kis_retrieval": int(initial_retrieval_count),
             "lambda_mmr": lambda_mmr,
-            "kis_retrieval": int(initial_retrieval_count) # <-- ✅ GIÁ TRỊ TỪ SLIDER ĐÃ ĐƯỢC ĐƯA VÀO ĐÂY
+            "weights": {
+                'w_clip': w_clip,
+                'w_obj': w_obj, # w_obj vẫn được gửi xuống, dù có thể không dùng trong PHOENIX
+                'w_semantic': w_semantic,
+                'w_spatial': w_spatial,
+                'w_fine_grained': w_fine_grained
+            }
         }
+        
         start_time = time.time()
         full_response = master_searcher.search(query=query_text, config=config)
         search_time = time.time() - start_time
+        
     except Exception as e:
         traceback.print_exc()
         return [], f"<div style='color: red;'>🔥 Lỗi backend: {e}</div>", None, [], 1, "Trang 1 / 1"
     
+    # --- Phần xử lý kết quả và trả về cho UI giữ nguyên ---
     gallery_paths = format_results_for_mute_gallery(full_response)
     num_found = len(gallery_paths)
     task_type_msg = full_response.get('task_type', TaskType.KIS).value

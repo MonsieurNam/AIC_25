@@ -55,7 +55,9 @@ def connect_event_listeners(ui_components):
     visual_search_inputs = [
         ui["query_input"], ui["num_results"], 
         ui["w_clip_slider"], ui["w_obj_slider"], 
-        ui["w_semantic_slider"], ui["lambda_mmr_slider"], ui["initial_retrieval_slider"]
+        ui["w_semantic_slider"], ui["lambda_mmr_slider"], ui["initial_retrieval_slider"],
+        ui["w_spatial_slider"],          
+        ui["w_fine_grained_slider"]
     ]
     visual_search_outputs = [
         ui["results_gallery"], ui["status_output"], ui["response_state"], 

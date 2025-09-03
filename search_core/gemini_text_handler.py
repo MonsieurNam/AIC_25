@@ -6,6 +6,57 @@ import re
 
 from utils import api_retrier
 
+SYSTEM_PROMPT = """
+You are an expert multimedia scene analyst for a Vietnamese video search engine. Your task is to dissect a user's query into structured, machine-readable components. Do NOT answer the user's query. Your SOLE output must be a single, valid JSON object and nothing else, without any markdown formatting like ```json.
+
+The user query will describe a visual scene. You must analyze it and extract three key components:
+
+1.  **`search_context` (string):**
+    *   An abstract, conceptual summary of the scene. IGNORE fine-grained details.
+    *   FOCUS on the **essence, atmosphere, and overall action**.
+    *   Example: For "a girl in a red dress holding a yellow balloon", the context is "a child enjoying an outdoor festival".
+
+2.  **`spatial_rules` (list of objects):**
+    *   Identify ALL spatial relationships (e.g., "between", "behind").
+    *   Create a JSON object for each with `entity`, `relation` (`is_between`, `is_behind`, etc.), and `targets`.
+    *   Use descriptive English labels (e.g., "person_white_shirt").
+    *   If none, this MUST be an empty list `[]`.
+
+3.  **`fine_grained_verification` (list of objects):**
+    *   Identify specific objects whose appearance is described in great detail (colors, textures, specific parts). These are details the main search might miss.
+    *   For each, create a JSON object with two fields:
+        *   `target_entity` (string): The general class name of the object (e.g., "Bird", "Flower", "Dessert"). This MUST be a common, single-word noun.
+        *   `detailed_description` (string): A full, descriptive English sentence detailing the object's specific visual characteristics as mentioned in the query.
+    *   Example: For "a bird with bright red eyes", the object would be:
+        `{"target_entity": "Bird", "detailed_description": "a bird with bright red eyes and blue-black feathers"}`
+    *   If no such detailed descriptions exist, this MUST be an empty list `[]`.
+
+**OUTPUT FORMAT EXAMPLE:**
+User Query: "On a white plate, there is a panna cotta dessert decorated with red grape slices, a green mint leaf, and two small edible flowers (one red, one yellow)."
+
+Your JSON output:
+{
+  "search_context": "a close-up shot of a gourmet dessert, panna cotta, being plated or displayed",
+  "spatial_rules": [],
+  "fine_grained_verification": [
+    {
+      "target_entity": "Grape",
+      "detailed_description": "slices of red grapes used as a garnish"
+    },
+    {
+      "target_entity": "Mint",
+      "detailed_description": "a fresh green mint leaf on a dessert"
+    },
+    {
+      "target_entity": "Flower",
+      "detailed_description": "a small, edible red and yellow flower for decoration"
+    }
+  ]
+}
+
+Now, analyze the user's query and provide ONLY the JSON output.
+"""
+
 class GeminiTextHandler:
     """
     Một class chuyên dụng để xử lý TẤT CẢ các tác vụ liên quan đến văn bản
@@ -95,61 +146,71 @@ class GeminiTextHandler:
             return "KIS"
         except Exception:
             return "KIS" # Fallback an toàn
-
+        
+    @api_retrier(max_retries=3, delay=5)
     def analyze_query_fully(self, query: str) -> Dict[str, Any]:
         """
-        Thực hiện phân tích toàn diện một truy vấn, bao gồm cả phân loại tác vụ,
-        trong MỘT lần gọi API duy nhất, yêu cầu output dạng JSON.
+        Phân tích sâu một truy vấn, trích xuất ngữ cảnh, đối tượng, và các quy tắc.
+        PHIÊN BẢN NÂNG CẤP: Xử lý output JSON có cấu trúc.
         """
-        fallback_result = {
-            'task_type': 'KIS', 'search_context': query, 'specific_question': "",
-            'aggregation_instruction': "", 'objects_vi': [], 'objects_en': []
-        }
+        print("--- ✨ Bắt đầu phân tích truy vấn có cấu trúc bằng Gemini... ---")
         
-        prompt = f"""
-            You are a master Vietnamese query analyzer. Analyze the query and return ONLY a single, valid JSON object with the keys: "task_type", "search_context", "specific_question", "objects_vi", "objects_en".
-
-            **Analysis Steps & Rules:**
-
-            1.  **Determine `task_type` FIRST (Strict Priority):**
-                - **TRAKE:** Does it ask for a SEQUENCE of distinct actions? (e.g., "đứng lên rồi đi ra"). If yes, `task_type` is "TRAKE".
-                - **QNA:** If not, is it a DIRECT QUESTION? (e.g., "ai là người...", "màu gì?", "đang làm gì?"). If yes, `task_type` is "QNA".
-                - **KIS:** Otherwise, it's a descriptive search. `task_type` is "KIS".
-
-            2.  **Fill other keys based on `task_type`:**
-                - `search_context`: The general scene to search for. ALWAYS FILL THIS.
-                - `specific_question`: The specific question for a vision model. ONLY for QNA. For others, it's an empty string.
-                - `objects_vi` & `objects_en`: Key nouns/entities from the query.
-
-            **Example 1 (QNA):**
-            Query: "ai là người đàn ông đội mũ đỏ đang phát biểu ở mỹ"
-            JSON: {{"task_type": "QNA", "search_context": "cảnh người đàn ông đội mũ đỏ đang phát biểu ở Mỹ", "specific_question": "ai là người đàn ông này?", "objects_vi": ["người đàn ông", "mũ đỏ", "phát biểu", "Mỹ"], "objects_en": ["man", "red hat", "speaking", "USA"]}}
-
-            **Example 2 (KIS):**
-            Query: "cảnh người đàn ông đội mũ đỏ phát biểu ở mỹ"
-            JSON: {{"task_type": "KIS", "search_context": "cảnh người đàn ông đội mũ đỏ phát biểu ở Mỹ", "specific_question": "", "objects_vi": ["người đàn ông", "mũ đỏ", "phát biểu", "Mỹ"], "objects_en": ["man", "red hat", "speaking", "USA"]}}
-            ---
-            **Your Task:**
-            Analyze the query below and generate the required JSON object.
-
-            **Query:** "{query}"
-            **JSON:**
-            """
+        user_prompt = f"Entities Dictionary for Grounding: {self.known_entities_prompt_segment}\n\nUser Query: \"{query}\""
+        
         try:
-            response = self._gemini_text_call(prompt)
-            raw_text = response.text
-            match = re.search(r"```json\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
-            json_string = match.group(1) if match else raw_text
+            response = self.model.generate_content(
+                [SYSTEM_PROMPT, user_prompt],
+                generation_config=self.generation_config,
+                safety_settings=self.safety_settings
+            )
             
-            result = json.loads(json_string)
-            if 'task_type' in result and 'search_context' in result:
-                return result
-            # Nếu JSON hợp lệ nhưng thiếu key, trả về fallback nhưng vẫn giữ lại những gì có
-            return {**fallback_result, **result}
+            raw_response_text = response.text.strip()
+            
+            try:
+                if raw_response_text.startswith("```json"):
+                    raw_response_text = raw_response_text[7:]
+                if raw_response_text.endswith("```"):
+                    raw_response_text = raw_response_text[:-3]
+
+                analysis_json = json.loads(raw_response_text)
+                
+                entities_to_ground = set()
+                if 'spatial_rules' in analysis_json and isinstance(analysis_json['spatial_rules'], list):
+                    for rule in analysis_json['spatial_rules']:
+                        if 'entity' in rule and isinstance(rule['entity'], str):
+                            entities_to_ground.add(rule['entity'].replace('_', ' '))
+                        if 'targets' in rule and isinstance(rule['targets'], list):
+                            for target in rule['targets']:
+                                if isinstance(target, str):
+                                    entities_to_ground.add(target.replace('_', ' '))
+
+                grounded_entities = self.semantic_grounding(list(entities_to_ground))
+                analysis_json['grounded_entities'] = grounded_entities
+                print(f"--- 🧠 Semantic Grounding cho các thực thể không gian: {list(entities_to_ground)} -> {grounded_entities} ---")
+
+                return analysis_json
+
+            except json.JSONDecodeError:
+                print(f"--- ⚠️ Lỗi: Gemini không trả về JSON hợp lệ. Sử dụng fallback. ---")
+                print(f"    Raw response: {raw_response_text}")
+                return {
+                    "search_context": query, # Dùng query gốc làm context
+                    "spatial_rules": [],
+                    "fine_grained_verification": [],
+                    "grounded_entities": []
+                }
 
         except Exception as e:
-            print(f"Lỗi Gemini analyze_query_fully: {e}. Response: '{getattr(response, 'text', 'N/A')}'")
-            return fallback_result
+            print(f"--- ❌ Lỗi nghiêm trọng khi gọi API Gemini: {e} ---")
+            import traceback
+            traceback.print_exc()
+            # Fallback trong trường hợp API lỗi
+            return {
+                "search_context": query,
+                "spatial_rules": [],
+                "fine_grained_verification": [],
+                "grounded_entities": []
+            }
 
     def enhance_query(self, query: str) -> Dict[str, Any]:
         """Phân tích và trích xuất thông tin truy vấn bằng Gemini."""
