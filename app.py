@@ -43,7 +43,7 @@ def on_gallery_select_wrapper(response_state, current_page, query_input, evt: gr
         evt=evt
     )
 calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=fps_map)
-add_to_submission_with_backend = partial(handlers.add_to_submission_list, fps_map=fps_map)
+add_to_submission_with_backend = partial(handlers.add_to_submission_list)
 sync_submission_with_backend = partial(handlers.sync_submission_state_to_editor, fps_map=fps_map)
 
 def connect_event_listeners(ui_components):

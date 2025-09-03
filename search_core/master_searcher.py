@@ -88,6 +88,43 @@ class MasterSearcher:
             self.trake_solver = TRAKESolver(ai_handler=self.gemini_handler)
 
         print(f"--- ✅ Master Searcher đã sẵn sàng! (AI Enabled: {self.ai_enabled}) ---")
+    
+    def _deduplicate_temporally(self, results: List[Dict[str, Any]], time_threshold: int = 5) -> List[Dict[str, Any]]:
+        """
+        Lọc các kết quả bị trùng lặp về mặt thời gian trong cùng một video.
+
+        Args:
+            results (List[Dict[str, Any]]): Danh sách kết quả đã được sắp xếp theo điểm.
+            time_threshold (int): Ngưỡng thời gian (giây). Các frame trong cùng video
+                                  cách nhau dưới ngưỡng này sẽ bị coi là trùng lặp.
+
+        Returns:
+            List[Dict[str, Any]]: Danh sách kết quả đã được lọc.
+        """
+        if not results:
+            return []
+
+        print(f"--- 🛡️ Bắt đầu Lọc Trùng lặp Thời gian (Ngưỡng: {time_threshold}s)... ---")
+        
+        last_timestamp_per_video = {}
+        
+        deduplicated_results = []
+
+        for result in results:
+            video_id = result.get('video_id')
+            timestamp = result.get('timestamp')
+
+            if not video_id or timestamp is None:
+                continue # Bỏ qua nếu thiếu thông tin
+
+            last_seen_timestamp = last_timestamp_per_video.get(video_id)
+
+            if last_seen_timestamp is None or abs(timestamp - last_seen_timestamp) > time_threshold:
+                deduplicated_results.append(result)
+                last_timestamp_per_video[video_id] = timestamp
+        
+        print(f"--- ✅ Lọc hoàn tất. Từ {len(results)} -> còn {len(deduplicated_results)} kết quả. ---")
+        return deduplicated_results
 
     def search(self, query: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -204,6 +241,8 @@ class MasterSearcher:
                 top_k_final=kis_retrieval, 
                 top_k_retrieval=kis_retrieval
             )
+        if task_type in [TaskType.KIS, TaskType.QNA]:
+            final_results = self._deduplicate_temporally(final_results, time_threshold=2)
         # --- BƯỚC 4: ÁP DỤNG MMR ĐỂ TĂNG CƯỜNG ĐA DẠNG ---
         diverse_results = final_results
         if self.mmr_builder and final_results:
