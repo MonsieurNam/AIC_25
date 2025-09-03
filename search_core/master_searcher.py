@@ -25,6 +25,7 @@ class MasterSearcher:
 
     def __init__(self, 
                  basic_searcher: BasicSearcher, 
+                 rerank_model,
                  gemini_api_key: Optional[str] = None,
                  openai_api_key: Optional[str] = None,
                  entities_path: str = None,
@@ -34,7 +35,7 @@ class MasterSearcher:
         """
         print("--- 🧠 Khởi tạo Master Searcher (Hybrid AI Edition) ---")
         
-        self.semantic_searcher = SemanticSearcher(basic_searcher=basic_searcher)
+        self.semantic_searcher = SemanticSearcher(basic_searcher=basic_searcher, rerank_model=rerank_model)
         self.mmr_builder: Optional[MMRResultBuilder] = None
         if clip_features_path and os.path.exists(clip_features_path):
             try:

@@ -5,6 +5,7 @@ import os
 import glob
 from search_core.basic_searcher import BasicSearcher
 from search_core.master_searcher import MasterSearcher
+from sentence_transformers import SentenceTransformer
 from config import (
     VIDEO_BASE_PATH, FAISS_INDEX_PATH, RERANK_METADATA_PATH, 
     CLIP_FEATURES_PATH, ALL_ENTITIES_PATH, OPENAI_API_KEY, GEMINI_API_KEY
@@ -22,9 +23,17 @@ def initialize_backend():
     all_video_files = glob.glob(os.path.join(VIDEO_BASE_PATH, "**", "*.mp4"), recursive=True)
     video_path_map = {os.path.basename(f).replace('.mp4', ''): f for f in all_video_files}
     print(f"--- ✅ Lập bản đồ thành công cho {len(video_path_map)} video. ---")
+    print("   -> Đang tải mô hình Bi-Encoder tiếng Việt cho Reranking...")
+    try:
+        # Thay thế bằng tên model rerank của bạn nếu khác
+        rerank_model = SentenceTransformer('bkai-foundation-models/vietnamese-bi-encoder', device='cuda')
+        print("--- ✅ Tải model Bi-Encoder thành công! ---")
+    except Exception as e:
+        print(f"--- ❌ Lỗi nghiêm trọng khi tải model Rerank: {e}. Hệ thống có thể không hoạt động đúng. ---")
+        rerank_model = None
     
     basic_searcher = BasicSearcher(FAISS_INDEX_PATH, RERANK_METADATA_PATH, video_path_map, clip_features_path=CLIP_FEATURES_PATH)
-    master_searcher = MasterSearcher(basic_searcher=basic_searcher, openai_api_key=OPENAI_API_KEY, gemini_api_key=GEMINI_API_KEY, entities_path=ALL_ENTITIES_PATH, clip_features_path=CLIP_FEATURES_PATH)    
+    master_searcher = MasterSearcher(basic_searcher=basic_searcher, rerank_model=rerank_model, openai_api_key=OPENAI_API_KEY, gemini_api_key=GEMINI_API_KEY, entities_path=ALL_ENTITIES_PATH, clip_features_path=CLIP_FEATURES_PATH)    
     print("--- ✅ MasterSearcher đã sẵn sàng. ---")
 
     # --- 2. Transcript Searcher (Transcript Intel Engine) ---
