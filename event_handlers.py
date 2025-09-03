@@ -158,7 +158,7 @@ def on_gallery_select(response_state: Dict, current_page: int, transcript_search
         video_id, f"{timestamp:.2f}", None
     )
 
-def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, transcript_searcher, fps_map: dict, query1: str, query2: str, query3: str, evt: gr.SelectData):
+def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, transcript_searcher, query1: str, query2: str, query3: str, evt: gr.SelectData):
     empty_return = clear_analysis_panel()
     if evt.value is None or results_state is None or results_state.empty: return empty_return
     
@@ -193,13 +193,11 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
             "final_score": 0.0,
             "task_type": TaskType.KIS
         }
-        fps = fps_map.get(video_id)
-        analysis_html = create_detailed_info_html(candidate_for_submission, TaskType.KIS, fps_value=fps)
 
         return (
             keyframe_path, gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"),
             highlighted_transcript,
-            analysis_html, 
+            "", 
             candidate_for_submission, video_id, f"{timestamp:.2f}", selected_index
         )
     except (IndexError, KeyError) as e:
