@@ -44,18 +44,23 @@ class SemanticSearcher:
         self.object_vector_cache = ObjectVectorCache()
         print("--- ✅ Sẵn sàng hoạt động với bộ nhớ cache. ---")
             
-    def _apply_spatial_filter(self, candidates: List[Dict], spatial_rules: List[Dict], grounded_entities: List[str]) -> List[Dict]:
+    def _apply_spatial_filter(self, 
+                              candidates: List[Dict], 
+                              spatial_rules: List[Dict], 
+                              precomputed_analysis: Dict[str, Any]
+                             ) -> List[Dict]:
         """
         Áp dụng các quy tắc không gian để tính điểm 'spatial_score' cho mỗi ứng viên.
-        PHIÊN BẢN HOÀN CHỈNH.
+        PHIÊN BẢN HOÀN CHỈNH - Tích hợp Semantic Grounding.
         """
         # --- Điều kiện thoát sớm ---
+        grounding_map = precomputed_analysis.get('grounding_map', {})
         if not spatial_rules or self.master_object_df is None or self.master_object_df.empty:
             for cand in candidates:
-                cand['scores']['spatial_score'] = 1.0
+                cand['scores']['spatial_score'] = 1.0 # Điểm mặc định nếu không có gì để lọc
             return candidates
 
-        print(f"--- 📐 Áp dụng {len(spatial_rules)} Quy tắc Không gian trên {len(candidates)} ứng viên... ---")
+        print(f"--- 📐 Áp dụng {len(spatial_rules)} Quy tắc Không gian (có Grounding) trên {len(candidates)} ứng viên... ---")
         
         candidate_ids = [c['keyframe_id'] for c in candidates]
         try:
@@ -69,6 +74,7 @@ class SemanticSearcher:
             return candidates
 
         for cand in candidates:
+            # Lấy object cho keyframe hiện tại
             keyframe_objects = relevant_objects_df[relevant_objects_df.index == cand['keyframe_id']]
             
             if keyframe_objects.empty:
@@ -80,21 +86,22 @@ class SemanticSearcher:
             
             # Lặp qua từng quy tắc mà Gemini đã cung cấp
             for rule in spatial_rules:
-                
-                entity_label = rule['entity'].replace('_', ' ')
+                entity_original = rule['entity'].replace('_', ' ')
                 relation = rule['relation']
-                target_labels = [t.replace('_', ' ') for t in rule['targets']]
+                targets_original = [t.replace('_', ' ') for t in rule['targets']]
                 
-                # Lấy ra tất cả các bounding box của các object có liên quan trong rule này
-                # Chúng ta sẽ tìm các label chứa (contains) entity_label, ví dụ "man" sẽ khớp với "man black shirt"
-                entity_boxes = keyframe_objects[keyframe_objects['object_label'].str.contains(entity_label, case=False)]['bounding_box'].tolist()
+                # --- SỬ DỤNG BẢN ĐỒ DỊCH (GROUNDING MAP) ---
+                # Ưu tiên dùng nhãn đã được dịch, nếu không có thì dùng nhãn gốc
+                entity_grounded = grounding_map.get(entity_original, entity_original)
+                targets_grounded = [grounding_map.get(t, t) for t in targets_original]
                 
-                print(f"Kiểm tra rule: {rule}")
-                print(f" -> Tìm box cho entity: '{entity_label}'. Tìm thấy: {len(entity_boxes)}")
+                # Lấy ra tất cả các bounding box của các object đã được "dịch"
+                # Tìm kiếm chính xác (==) thay vì chứa (contains) để tăng độ chính xác
+                entity_boxes = keyframe_objects[keyframe_objects['object_label'] == entity_grounded]['bounding_box'].tolist()
                 
                 target_boxes_lists = []
-                for label in target_labels:
-                    boxes = keyframe_objects[keyframe_objects['object_label'].str.contains(label, case=False)]['bounding_box'].tolist()
+                for label in targets_grounded:
+                    boxes = keyframe_objects[keyframe_objects['object_label'] == label]['bounding_box'].tolist()
                     target_boxes_lists.append(boxes)
 
                 # Nếu thiếu bất kỳ loại object nào, không thể thỏa mãn rule -> bỏ qua
@@ -108,11 +115,9 @@ class SemanticSearcher:
                     
                     # --- Xử lý các loại quan hệ ---
                     if relation == 'is_between' and len(target_boxes_lists) == 2:
-                        # Cần tìm một cặp target (từ list 1 và list 2) để entity nằm giữa
                         # Lấy tất cả các cặp có thể có giữa hai list target boxes
                         target_pairs = [(b1, b2) for b1 in target_boxes_lists[0] for b2 in target_boxes_lists[1]]
                         for target1_box, target2_box in target_pairs:
-                            # Tránh trường hợp 2 target là cùng một object
                             if target1_box == target2_box: continue
                             if is_between(entity_box, target1_box, target2_box):
                                 rule_satisfied = True
@@ -124,8 +129,14 @@ class SemanticSearcher:
                                 rule_satisfied = True
                                 break
                     
-                    # TODO: Thêm các điều kiện 'is_next_to', 'is_above', etc. ở đây nếu cần
-                    
+                    # Thêm các điều kiện 'is_next_to', 'is_above', etc. ở đây nếu cần
+                    # Ví dụ:
+                    # elif relation == 'is_next_to' and len(target_boxes_lists) == 1:
+                    #     for target_box in target_boxes_lists[0]:
+                    #         if is_next_to(entity_box, target_box): # Cần định nghĩa hàm is_next_to
+                    #             rule_satisfied = True
+                    #             break
+                            
                 if rule_satisfied:
                     satisfied_rules_count += 1
             
@@ -133,7 +144,7 @@ class SemanticSearcher:
             cand['scores']['spatial_score'] = satisfied_rules_count / total_rules if total_rules > 0 else 1.0
 
         # In ra một vài ví dụ điểm để debug
-        print("    -> Ví dụ điểm không gian:", {c['keyframe_id']: f"{c['scores']['spatial_score']:.2f}" for c in candidates[:5]})
+        print("    -> Ví dụ điểm không gian (có Grounding):", {c['keyframe_id']: f"{c['scores']['spatial_score']:.2f}" for c in candidates[:5]})
         return candidates
     
     def _apply_fine_grained_filter(self, candidates: List[Dict], verification_rules: List[Dict]) -> List[Dict]:

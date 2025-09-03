@@ -15,10 +15,9 @@ def crop_image_by_box(image_path: str, box: List[float]) -> Image.Image:
     """
     with Image.open(image_path) as img:
         width, height = img.size
-        # Chuyển tọa độ tương đối thành tọa độ pixel tuyệt đối
-        left = box * width
-        top = box * height
-        right = box * width
-        bottom = box * height
+        top = box[0] * height
+        left = box[1] * width
+        bottom = box[2] * height
+        right = box[3] * width
         
         return img.crop((left, top, right, bottom))

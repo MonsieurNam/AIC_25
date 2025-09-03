@@ -92,6 +92,36 @@ class MasterSearcher:
             self.trake_solver = TRAKESolver(ai_handler=self.gemini_handler)
 
         print(f"--- ✅ Master Searcher đã sẵn sàng! (AI Enabled: {self.ai_enabled}) ---")
+        
+    def perform_semantic_grounding(self, entities_to_ground: List[str]) -> Dict[str, str]:
+        """
+        Dịch các nhãn entity tự do về các nhãn chuẩn có trong từ điển.
+        Trả về một dictionary mapping: {entity_gốc: entity_đã_dịch}.
+        """
+        if not entities_to_ground or not self.known_entities_prompt_segment:
+            return {}
+
+        print(f"--- 🧠 Bắt đầu Semantic Grounding cho: {entities_to_ground} ---")
+        
+        prompt = (
+            f"You are a helpful assistant. Your task is to map a list of input entities to the closest matching entities from a predefined dictionary. "
+            f"For each input entity, find the single most appropriate term from the dictionary.\n\n"
+            f"**Predefined Dictionary:**\n{self.known_entities_prompt_segment}\n\n"
+            f"**Input Entities to Map:**\n{json.dumps(entities_to_ground)}\n\n"
+            f"Provide your answer ONLY as a valid JSON object mapping each input entity to its corresponding dictionary term. "
+            f"Example format: {{\"input_entity_1\": \"dictionary_term_1\", \"input_entity_2\": \"dictionary_term_2\"}}"
+        )
+        
+        try:
+            response = self.model.generate_content(prompt)
+            # Giả định response.text là một chuỗi JSON hợp lệ
+            grounding_map = json.loads(response.text)
+            print(f"    -> Kết quả Grounding: {grounding_map}")
+            return grounding_map
+        except Exception as e:
+            print(f"--- ⚠️ Lỗi trong quá trình Semantic Grounding: {e} ---")
+            # Fallback: Trả về mapping rỗng nếu có lỗi
+            return {}
     
     def _deduplicate_temporally(self, results: List[Dict[str, Any]], time_threshold: int = 5) -> List[Dict[str, Any]]:
         """
@@ -152,6 +182,15 @@ class MasterSearcher:
         if self.ai_enabled and self.gemini_handler:
             print("--- ✨ Bắt đầu phân tích truy vấn bằng Gemini Text Handler... ---")
             query_analysis = self.gemini_handler.analyze_query_fully(query)
+            
+            entities_to_ground = query_analysis.get('entities_to_ground', [])
+            if entities_to_ground:
+                # Gọi hàm grounding để lấy bản đồ dịch
+                grounding_map = self.gemini_handler.perform_semantic_grounding(entities_to_ground)
+                # Lưu bản đồ này vào query_analysis để các tầng sau sử dụng
+                query_analysis['grounding_map'] = grounding_map
+            else:
+                query_analysis['grounding_map'] = {}
             
             original_objects = query_analysis.get('objects_en', [])
             if original_objects:
