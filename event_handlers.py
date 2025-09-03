@@ -23,9 +23,26 @@ from utils.formatting import format_submission_list_to_csv_string
 # ==============================================================================
 
 def generate_full_video_link(video_path: str) -> str:
+    # === DEBUG LOG: KIỂM TRA PATH CUỐI CÙNG TRƯỚC KHI TẠO URL ===
+    print("\n" + "="*20 + " DEBUG LOG: generate_full_video_link " + "="*20)
+    print(f"-> Input video_path: '{video_path}' (Type: {type(video_path)})")
+    # === KẾT THÚC DEBUG LOG ===
+    
     if not video_path or not os.path.exists(video_path):
+        # === DEBUG LOG: PATH KHÔNG HỢP LỆ HOẶC KHÔNG TỒN TẠI ===
+        print(f"-> VALIDATION FAILED: Path is None, empty, or does not exist.")
+        print("="*73 + "\n")
+        # === KẾT THÚC DEBUG LOG ===
         return "<p style='color: #888; text-align: center; padding: 10px;'>Chọn một kết quả để xem link video gốc.</p>"
+    
     file_url = f"/file={video_path}"
+    
+    # === DEBUG LOG: KIỂM TRA URL ĐƯỢC TẠO RA ===
+    print(f"-> Generated file_url: '{file_url}'")
+    print(f"-> Path exists: {os.path.exists(video_path)}")
+    print("="*73 + "\n")
+    # === KẾT THÚC DEBUG LOG ===
+    
     return f"""<div style='text-align: center; margin-top: 10px;'><a href='{file_url}' target='_blank' style='background-color: #4CAF50; color: white; padding: 10px 15px; text-align: center; text-decoration: none; display: inline-block; border-radius: 8px; font-weight: bold; cursor: pointer;'>🎬 Mở Video Gốc (Toàn bộ) trong Tab mới</a></div>"""
 
 def get_full_transcript_for_video(video_id: str, transcript_searcher) -> str:
@@ -109,6 +126,12 @@ def on_gallery_select(response_state: Dict, current_page: int, transcript_search
     selected_result = results[global_index]
     video_id = selected_result.get('video_id')
     video_path = selected_result.get('video_path')
+    
+    print("\n" + "="*20 + " DEBUG LOG: on_gallery_select " + "="*20)
+    print(f"-> Selected video_id: {video_id}")
+    print(f"-> Retrieved video_path from selected_result: '{video_path}'")
+    print("="*65 + "\n")
+    
     keyframe_path = selected_result.get('keyframe_path')
     timestamp = selected_result.get('timestamp', 0.0)
     
@@ -134,6 +157,11 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
         timestamp = selected_row['timestamp']
         keyframe_path = selected_row['keyframe_path']
         video_path = video_path_map.get(video_id)
+        
+        print("\n" + "="*20 + " DEBUG LOG: on_transcript_select " + "="*20)
+        print(f"-> Selected video_id: {video_id}")
+        print(f"-> Retrieved video_path from video_path_map: '{video_path}'")
+        print("="*75 + "\n")
         
         if not video_path:
             gr.Error(f"Không tìm thấy đường dẫn cho video ID: {video_id}")
