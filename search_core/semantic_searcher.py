@@ -150,7 +150,7 @@ class SemanticSearcher:
         detailed_descriptions = [rule['detailed_description'] for rule in verification_rules]
         text_inputs = self.clip_processor(text=detailed_descriptions, return_tensors="pt", padding=True, truncation=True).to(self.device)
         with torch.no_grad():
-            text_features = self.clip_model.get_text_features(**text_inputs)
+            text_features = self.clip_model.encode(detailed_descriptions, convert_to_tensor=True, device=self.device)
             text_features /= text_features.norm(dim=-1, keepdim=True)
 
         for cand in tqdm(top_candidates, desc="Xác thực chi tiết (soi kính hiển vi)"):
@@ -179,9 +179,8 @@ class SemanticSearcher:
                 if object_vector is None: # Cache miss
                     try:
                         cropped_image = crop_image_by_box(cand['keyframe_path'], best_object['bounding_box'])
-                        image_input = self.clip_processor(images=cropped_image, return_tensors="pt").to(self.device)
                         with torch.no_grad():
-                            image_features = self.clip_model.get_image_features(**image_input)
+                            image_features = self.clip_model.encode(cropped_image, convert_to_tensor=True, device=self.device)
                             image_features /= image_features.norm(dim=-1, keepdim=True)
                         
                         object_vector = image_features.cpu().numpy()
