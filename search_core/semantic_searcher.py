@@ -148,7 +148,6 @@ class SemanticSearcher:
         
         # Encode tất cả các mô tả text một lần duy nhất
         detailed_descriptions = [rule['detailed_description'] for rule in verification_rules]
-        text_inputs = self.clip_processor(text=detailed_descriptions, return_tensors="pt", padding=True, truncation=True).to(self.device)
         with torch.no_grad():
             text_features = self.clip_model.encode(detailed_descriptions, convert_to_tensor=True, device=self.device)
             text_features /= text_features.norm(dim=-1, keepdim=True)
