@@ -125,7 +125,7 @@ def clear_transcript_search():
 # === HANDLERS CHO SỰ KIỆN SELECT (CẬP NHẬT TRẠM PHÂN TÍCH) ===
 # ==============================================================================
 
-def on_gallery_select(response_state: Dict, current_page: int, transcript_searcher, query_text: str, evt: gr.SelectData):
+def on_gallery_select(response_state: Dict, current_page: int, query_text: str, transcript_searcher, evt: gr.SelectData):
     empty_return = clear_analysis_panel()
     if not response_state or evt is None: return empty_return
     
@@ -135,6 +135,8 @@ def on_gallery_select(response_state: Dict, current_page: int, transcript_search
     
     selected_result = results[global_index]
     video_id = selected_result.get('video_id')
+    
+    # Lấy lại video_path từ selected_result vì nó đã có sẵn
     video_path = selected_result.get('video_path')
     
     print("\n" + "="*20 + " DEBUG LOG: on_gallery_select " + "="*20)
@@ -142,14 +144,14 @@ def on_gallery_select(response_state: Dict, current_page: int, transcript_search
     print(f"-> Retrieved video_path from selected_result: '{video_path}'")
     print("="*65 + "\n")
     
-    selected_result = results[global_index]
-    video_id = selected_result.get('video_id')
-    video_path = selected_result.get('video_path') # Đã có sẵn video_path
     keyframe_path = selected_result.get('keyframe_path')
     timestamp = selected_result.get('timestamp', 0.0)
     
     full_transcript = get_full_transcript_for_video(video_id, transcript_searcher)
+    
+    # TÔ SÁNG DỰA TRÊN QUERY_TEXT (tham số đã được sửa đúng vị trí)
     highlighted_transcript = highlight_keywords(full_transcript, [query_text])
+    
     video_clip_path = create_video_segment(video_path, timestamp, duration=30)
     analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
 
