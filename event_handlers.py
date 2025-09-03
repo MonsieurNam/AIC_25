@@ -96,11 +96,18 @@ def handle_transcript_search(query1: str, query2: str, query3: str, transcript_s
         return "Nhập truy vấn để bắt đầu hoặc không tìm thấy kết quả.", pd.DataFrame(), None
         
     count_str = f"Tìm thấy: {len(results)} kết quả."
-    display_df = results[['video_id', 'timestamp', 'transcript_text', 'keyframe_path']].copy()
+    keywords_to_highlight = [q for q in [query1, query2, query3] if q and q.strip()]
+    if keywords_to_highlight:
+        results['highlighted_text'] = results['transcript_text'].apply(
+            lambda text: highlight_keywords(text, keywords_to_highlight)
+        )
+    else:
+        results['highlighted_text'] = results['transcript_text']
+    display_df = results[['video_id', 'timestamp', 'highlighted_text', 'keyframe_path']].copy()
     display_df.rename(columns={
         'video_id': 'Video ID',
         'timestamp': 'Timestamp (s)',
-        'transcript_text': 'Nội dung Lời thoại',
+        'highlighted_text': 'Nội dung Lời thoại',
         'keyframe_path': 'Keyframe Path'
     }, inplace=True)
     

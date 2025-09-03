@@ -157,7 +157,7 @@ def build_ui(connect_events_fn):
                         with gr.Row():
                              add_transcript_top_button = gr.Button("➕ Thêm kết quả đã chọn vào Top 1", variant="primary")
                              add_transcript_bottom_button = gr.Button("➕ Thêm kết quả đã chọn vào cuối")
-                        transcript_results_df = gr.DataFrame(headers=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"], datatype=["str", "number", "str", "str"], row_count=10, col_count=(4, "fixed"), wrap=True, interactive=True, visible=True, column_widths=["15%", "15%", "60%", "0%"], elem_id="transcript-dataframe")
+                        transcript_results_df = gr.DataFrame(headers=["Video ID", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"], datatype=["str", "number", "markdown", "str"], row_count=10, col_count=(4, "fixed"), wrap=True, interactive=True, visible=True, column_widths=["15%", "15%", "60%", "0%"], elem_id="transcript-dataframe")
             
             # --- CỘT PHẢI (scale=1): TRẠM PHÂN TÍCH & NỘP BÀI (DÙNG CHUNG) ---
             with gr.Column(scale=1):
