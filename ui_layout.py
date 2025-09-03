@@ -77,7 +77,7 @@ video {
     background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
 }
 mark {
-    background-color: #90EE90 !important; /* Một màu vàng nhạt đẹp mắt */
+    background-color: #228B22 !important; /* Một màu vàng nhạt đẹp mắt */
     padding: 2px 4px;
     border-radius: 4px;
     font-weight: 600;
@@ -88,7 +88,7 @@ mark {
     padding: 15px; /* Thêm một chút đệm cho đẹp mắt. */
     border: 1px solid #e5e7eb; /* Thêm đường viền để phân biệt. */
     border-radius: 8px; /* Bo tròn các góc. */
-    background-color: #f8f9fa; /* Một màu nền rất nhạt. */
+    background-color: #1e1e1e; /* Một màu nền rất nhạt. */
     line-height: 1.6; /* Tăng khoảng cách giữa các dòng cho dễ đọc. */
 }
 """
