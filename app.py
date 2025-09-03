@@ -45,17 +45,12 @@ on_gallery_select_with_backend = partial(handlers.on_gallery_select, transcript_
 #     video_path_map=video_path_map,
 #     transcript_searcher=transcript_searcher
 # )
-def on_transcript_select_wrapper(results_state, evt: gr.SelectData):
-    """
-    Hàm bao bọc (wrapper) để gọi handler một cách tường minh.
-    Nó nhận các giá trị từ `inputs` và `evt`, sau đó truyền chúng
-    cùng với các đối tượng backend vào hàm xử lý gốc.
-    """
+def on_transcript_select_wrapper(results_state, query1, query2, query3, evt: gr.SelectData):
     return handlers.on_transcript_select(
-        results_state=results_state,
-        video_path_map=video_path_map,        # Lấy từ scope ngoài
-        transcript_searcher=transcript_searcher,  # Lấy từ scope ngoài
-        evt=evt                               # Truyền `evt` từ Gradio
+        results_state=results_state, video_path_map=video_path_map,
+        transcript_searcher=transcript_searcher,
+        query1=query1, query2=query2, query3=query3, # <-- Thêm các query
+        evt=evt
     )
 # Handlers cho các Công cụ Phụ trợ
 calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=fps_map)
@@ -126,14 +121,19 @@ def connect_event_listeners(ui_components):
     # 3.1. Sự kiện chọn từ Mắt Thần
     ui["results_gallery"].select(
         fn=on_gallery_select_with_backend,
-        inputs=[ui["response_state"], ui["current_page_state"]],
+        inputs=[ui["response_state"], ui["current_page_state"], ui["query_input"]],
         outputs=analysis_panel_outputs
     )
     
     # 3.2. Sự kiện chọn từ Tai Thính
     ui["transcript_results_df"].select(
         fn=on_transcript_select_wrapper,
-        inputs=[ui["transcript_results_state"]],
+        inputs=[
+            ui["transcript_results_state"],
+            ui["transcript_query_1"], # <-- Thêm input
+            ui["transcript_query_2"], # <-- Thêm input
+            ui["transcript_query_3"]  # <-- Thêm input
+        ],
         outputs=analysis_panel_outputs,
     )
 

@@ -1,6 +1,7 @@
 # ==============================================================================
 # === EVENT HANDLERS - PHIÊN BẢN ĐÃ DỌN DẸP VÀ HỢP NHẤT ===
 # ==============================================================================
+import html
 from io import StringIO
 import shutil
 import gradio as gr
@@ -22,6 +23,25 @@ from utils.formatting import format_submission_list_to_csv_string
 # ==============================================================================
 # === CÁC HÀM TRỢ GIÚP ===
 # ==============================================================================
+def highlight_keywords(full_text: str, keywords: List[str]) -> str:
+    """
+    Tô sáng tất cả các từ khóa trong một đoạn văn bản và chuyển nó thành HTML.
+    - Xử lý case-insensitive.
+    - An toàn với các ký tự đặc biệt trong HTML.
+    - Chuyển đổi ký tự xuống dòng thành thẻ <br>.
+    """
+    valid_keywords = [kw for kw in keywords if kw and kw.strip()]
+    
+    if not valid_keywords:
+        return html.escape(full_text).replace("\n", "<br>")
+    pattern = "|".join(re.escape(kw) for kw in valid_keywords)
+    highlighted_text = re.sub(
+        pattern,
+        lambda m: f"<mark>{m.group(0)}</mark>",
+        full_text,
+        flags=re.IGNORECASE
+    )
+    return highlighted_text.replace("\n", "<br>")
 
 def get_full_transcript_for_video(video_id: str, transcript_searcher) -> str:
     if not transcript_searcher or transcript_searcher.full_data is None: return "Lỗi: Transcript engine chưa sẵn sàng."
@@ -93,7 +113,7 @@ def clear_transcript_search():
 # === HANDLERS CHO SỰ KIỆN SELECT (CẬP NHẬT TRẠM PHÂN TÍCH) ===
 # ==============================================================================
 
-def on_gallery_select(response_state: Dict, current_page: int, transcript_searcher, evt: gr.SelectData):
+def on_gallery_select(response_state: Dict, current_page: int, transcript_searcher, query_text: str, evt: gr.SelectData):
     empty_return = clear_analysis_panel()
     if not response_state or evt is None: return empty_return
     
@@ -117,6 +137,7 @@ def on_gallery_select(response_state: Dict, current_page: int, transcript_search
     timestamp = selected_result.get('timestamp', 0.0)
     
     full_transcript = get_full_transcript_for_video(video_id, transcript_searcher)
+    highlighted_transcript = highlight_keywords(full_transcript, [query_text])
     video_clip_path = create_video_segment(video_path, timestamp, duration=30)
     analysis_html = create_detailed_info_html(selected_result, response_state.get("task_type"))
 
@@ -124,12 +145,13 @@ def on_gallery_select(response_state: Dict, current_page: int, transcript_search
 
     return (
         keyframe_path, gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"),
+        highlighted_transcript,
         full_transcript, analysis_html,
         candidate_for_submission, 
         video_id, f"{timestamp:.2f}", None
     )
 
-def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, transcript_searcher, evt: gr.SelectData):
+def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, transcript_searcher, query1: str, query2: str, query3: str, evt: gr.SelectData):
     empty_return = clear_analysis_panel()
     if evt.value is None or results_state is None or results_state.empty: return empty_return
     
@@ -151,6 +173,8 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
             return empty_return
 
         full_transcript = get_full_transcript_for_video(video_id, transcript_searcher)
+        keywords_to_highlight = [q for q in [query1, query2, query3] if q and q.strip()]
+        highlighted_transcript = highlight_keywords(full_transcript, keywords_to_highlight)
         video_clip_path = create_video_segment(video_path, timestamp, duration=30)
         
         candidate_for_submission = {
@@ -165,6 +189,7 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
 
         return (
             keyframe_path, gr.Video(value=video_clip_path, label=f"Clip 30s từ @ {timestamp:.2f}s"),
+            highlighted_transcript,
             full_transcript, "", 
             candidate_for_submission, video_id, f"{timestamp:.2f}", selected_index
         )
@@ -350,3 +375,4 @@ def handle_view_full_video(selected_candidate: Dict):
     print("="*60 + "\n")
     
     return gr.Video(value=destination_path, label=f"Video Gốc: {os.path.basename(source_path)}")
+

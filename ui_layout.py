@@ -76,6 +76,12 @@ video {
 ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
 }
+mark {
+    background-color: #FFF3A3 !important; /* Một màu vàng nhạt đẹp mắt */
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: 600;
+}
 """
 
 app_header_html = """
@@ -159,9 +165,9 @@ def build_ui(connect_events_fn):
                 with gr.Accordion("Media Player & Phân tích", open=True):
                     selected_image_display = gr.Image(label="🖼️ Keyframe được chọn", type="filepath")
                     video_player = gr.Video(label="🎬 Media Player", autoplay=False)
-                    full_transcript_display = gr.Textbox(label="📜 Transcript (nếu có)", lines=10, interactive=False, placeholder="Nội dung transcript của video sẽ hiện ở đây...")
+                    full_transcript_display = gr.Markdown(label="📜 Transcript (nếu có)", value="Nội dung transcript của video sẽ hiện ở đây...")
                     analysis_display_html = gr.HTML(label="📊 Phân tích Điểm số (cho Visual Search)")
-                    with gr.Accordion("🎬 Trình phát Video Gốc (Toàn bộ)", open=False):
+                    with gr.Accordion("🎬 Trình phát Video Gốc (Toàn bộ)", open=True):
                         view_full_video_button = gr.Button("▶️ Tải và Xem Toàn bộ Video Gốc (có thể mất vài giây)")
                         full_video_player = gr.Video(label="🎬 Video Gốc", interactive=False)
 
