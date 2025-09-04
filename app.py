@@ -72,19 +72,33 @@ def connect_event_listeners(ui_components):
     ]
     ui["search_button"].click(fn=search_with_backend, inputs=visual_search_inputs, outputs=visual_search_outputs)
     ui["query_input"].submit(fn=search_with_backend, inputs=visual_search_inputs, outputs=visual_search_outputs)
+    
     page_outputs = [ui["results_gallery"], ui["current_page_state"], ui["page_info_display"]]
+    
     ui["prev_page_button"].click(
-        fn=handlers.update_gallery_page,
+        fn=handlers.clear_gallery, 
+        inputs=None,
+        outputs=[ui["results_gallery"]],
+        queue=False
+    ).then(
+        fn=handlers.update_gallery_page, 
         inputs=[ui["gallery_items_state"], ui["current_page_state"], gr.Textbox("◀️ Trang trước", visible=False)],
         outputs=page_outputs,
         queue=False
     )
+
     ui["next_page_button"].click(
-        fn=handlers.update_gallery_page,
+        fn=handlers.clear_gallery, 
+        inputs=None,
+        outputs=[ui["results_gallery"]],
+        queue=False
+    ).then(
+        fn=handlers.update_gallery_page, 
         inputs=[ui["gallery_items_state"], ui["current_page_state"], gr.Textbox("▶️ Trang sau", visible=False)],
         outputs=page_outputs,
         queue=False
     )
+    
     transcript_inputs = [ui["transcript_query_1"], ui["transcript_query_2"], ui["transcript_query_3"]]
     transcript_outputs = [ui["transcript_results_count"], ui["transcript_results_df"], ui["transcript_results_state"]]
     ui["transcript_search_button"].click(fn=transcript_search_with_backend, inputs=transcript_inputs, outputs=transcript_outputs)

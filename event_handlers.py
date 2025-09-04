@@ -55,6 +55,13 @@ def clear_analysis_panel():
     """Helper để xóa các component trong cột phải."""
     return None, None, "", "", "", None, "", "", None
 
+def clear_gallery():
+    """
+    Hàm trợ giúp siêu nhỏ, chỉ trả về None để xóa sạch nội dung của Gallery.
+    Đây là bước đầu tiên trong kỹ thuật "Two-Step Update".
+    """
+    print("--- 🔄 Clearing gallery for page update... ---")
+    return None
 
 def perform_search(
     # --- Các tham số cũ ---
