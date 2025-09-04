@@ -12,7 +12,7 @@ import torch
 from tqdm import tqdm
 from typing import Dict, List, Optional, Any
 from utils.cache_manager import ObjectVectorCache
-from utils.spatial_engine import is_between, is_behind
+from utils.spatial_engine import is_above, is_below, is_between, is_behind, is_inside, is_next_to, is_on
 from utils.image_cropper import crop_image_by_box
 from search_core.basic_searcher import BasicSearcher
 
@@ -51,13 +51,12 @@ class SemanticSearcher:
                              ) -> List[Dict]:
         """
         Áp dụng các quy tắc không gian để tính điểm 'spatial_score' cho mỗi ứng viên.
-        PHIÊN BẢN HOÀN CHỈNH - Tích hợp Semantic Grounding.
+        PHIÊN BẢN HOÀN CHỈNH - Hỗ trợ đầy đủ các quan hệ từ spatial_engine.
         """
-        # --- Điều kiện thoát sớm ---
         grounding_map = precomputed_analysis.get('grounding_map', {})
         if not spatial_rules or self.master_object_df is None or self.master_object_df.empty:
             for cand in candidates:
-                cand['scores']['spatial_score'] = 1.0 # Điểm mặc định nếu không có gì để lọc
+                cand['scores']['spatial_score'] = 1.0
             return candidates
 
         print(f"--- 📐 Áp dụng {len(spatial_rules)} Quy tắc Không gian (có Grounding) trên {len(candidates)} ứng viên... ---")
@@ -74,85 +73,83 @@ class SemanticSearcher:
             return candidates
 
         for cand in candidates:
-            # Lấy object cho keyframe hiện tại
             keyframe_objects = relevant_objects_df[relevant_objects_df.index == cand['keyframe_id']]
-            
             if keyframe_objects.empty:
                 cand['scores']['spatial_score'] = 0.0
                 continue
             
+            # Chuẩn hóa nhãn object về chữ thường một lần
+            keyframe_objects_lower = keyframe_objects.copy()
+            keyframe_objects_lower['object_label'] = keyframe_objects_lower['object_label'].str.lower()
+            
             total_rules = len(spatial_rules)
             satisfied_rules_count = 0
+            
             is_debug_candidate = cand['keyframe_id'] in [c['keyframe_id'] for c in candidates[:5]]
             if is_debug_candidate:
                 print(f"\n--- DEBUG: Phân tích không gian cho Keyframe: {cand['keyframe_id']} ---")
-            # Lặp qua từng quy tắc mà Gemini đã cung cấp
+
             for rule in spatial_rules:
                 entity_original = rule['entity'].replace('_', ' ')
                 relation = rule['relation']
                 targets_original = [t.replace('_', ' ') for t in rule['targets']]
                 
-                    
-                entity_grounded = grounding_map.get(entity_original, entity_original).lower() # <-- .lower()
-                targets_grounded = [grounding_map.get(t, t).lower() for t in targets_original] # <-- .lower()
+                entity_grounded = grounding_map.get(entity_original, entity_original).lower()
+                targets_grounded = [grounding_map.get(t, t).lower() for t in targets_original]
+                
                 if is_debug_candidate:
                     print(f"  - Rule: {rule['entity']} {rule['relation']} {rule['targets']}")
                     print(f"    -> Grounded: '{entity_grounded}' vs {targets_grounded}")
-                # Chuẩn hóa cột object_label về chữ thường MỘT LẦN cho mỗi keyframe
-                keyframe_objects_lower = keyframe_objects.copy()
-                keyframe_objects_lower['object_label'] = keyframe_objects_lower['object_label'].str.lower()
 
-                # Tìm kiếm trên cột đã được chuẩn hóa
                 entity_boxes = keyframe_objects_lower[keyframe_objects_lower['object_label'] == entity_grounded]['bounding_box'].tolist()
-
                 target_boxes_lists = []
                 for label in targets_grounded:
                     boxes = keyframe_objects_lower[keyframe_objects_lower['object_label'] == label]['bounding_box'].tolist()
                     target_boxes_lists.append(boxes)
+
                 if is_debug_candidate:
                     print(f"    -> Tìm thấy: '{entity_grounded}' ({len(entity_boxes)} box), Targets ({[len(boxes) for boxes in target_boxes_lists]} boxes)")
-
-                # Nếu thiếu bất kỳ loại object nào, không thể thỏa mãn rule -> bỏ qua
+                
                 if not entity_boxes or any(not boxes for boxes in target_boxes_lists):
                     continue
                     
                 rule_satisfied = False
-                # Lặp qua tất cả các box của entity chính
                 for entity_box in entity_boxes:
                     if rule_satisfied: break
                     
-                    # --- Xử lý các loại quan hệ ---
+                    # --- ✅ KHỐI LOGIC ĐIỀU PHỐI QUAN HỆ ĐÃ ĐƯỢC MỞ RỘNG ---
+                    # Quan hệ 2 target
                     if relation == 'is_between' and len(target_boxes_lists) == 2:
-                        # Lấy tất cả các cặp có thể có giữa hai list target boxes
                         target_pairs = [(b1, b2) for b1 in target_boxes_lists[0] for b2 in target_boxes_lists[1]]
                         for target1_box, target2_box in target_pairs:
                             if target1_box == target2_box: continue
                             if is_between(entity_box, target1_box, target2_box):
-                                rule_satisfied = True
-                                break
+                                rule_satisfied = True; break
                     
-                    elif relation == 'is_behind' and len(target_boxes_lists) == 1:
+                    # Quan hệ 1 target
+                    elif len(target_boxes_lists) == 1:
                         for target_box in target_boxes_lists[0]:
-                            if is_behind(entity_box, target_box):
+                            # Dùng một dictionary để tra cứu hàm cho gọn
+                            relation_function = {
+                                'is_behind': is_behind,
+                                'is_on': is_on,
+                                'is_above': is_above,
+                                'is_below': is_below,
+                                'is_next_to': is_next_to,
+                                'is_inside': is_inside
+                            }.get(relation) # .get() trả về None nếu relation không hợp lệ
+                            
+                            if relation_function and relation_function(entity_box, target_box):
                                 rule_satisfied = True
                                 break
-                    
-                    # Thêm các điều kiện 'is_next_to', 'is_above', etc. ở đây nếu cần
-                    # Ví dụ:
-                    # elif relation == 'is_next_to' and len(target_boxes_lists) == 1:
-                    #     for target_box in target_boxes_lists[0]:
-                    #         if is_next_to(entity_box, target_box): # Cần định nghĩa hàm is_next_to
-                    #             rule_satisfied = True
-                    #             break
                             
                 if rule_satisfied:
                     satisfied_rules_count += 1
-            if rule_satisfied and is_debug_candidate:
-                print(f"    -> ✅ QUY TẮC ĐƯỢC THỎA MÃN!")
-            # Tính điểm cuối cùng: tỷ lệ các rule được thỏa mãn
+                    if is_debug_candidate:
+                        print(f"    -> ✅ QUY TẮC ĐƯỢC THỎA MÃN!")
+            
             cand['scores']['spatial_score'] = satisfied_rules_count / total_rules if total_rules > 0 else 1.0
-
-        # In ra một vài ví dụ điểm để debug
+        
         print("    -> Ví dụ điểm không gian (có Grounding):", {c['keyframe_id']: f"{c['scores']['spatial_score']:.2f}" for c in candidates[:5]})
         return candidates
     
@@ -186,6 +183,7 @@ class SemanticSearcher:
             
             total_score = 0.0
             for i, rule in enumerate(verification_rules):
+                object_vector = None
                 target_label = rule['target_entity']
                 
                 # Tìm object phù hợp nhất trong keyframe (confidence cao nhất)
