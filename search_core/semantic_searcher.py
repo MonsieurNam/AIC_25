@@ -122,7 +122,7 @@ class SemanticSearcher:
                     if relation == 'is_between' and len(target_boxes_lists) == 2:
                         target_pairs = [(b1, b2) for b1 in target_boxes_lists[0] for b2 in target_boxes_lists[1]]
                         for target1_box, target2_box in target_pairs:
-                            if target1_box == target2_box: continue
+                            if np.array_equal(target1_box, target2_box): continue
                             if is_between(entity_box, target1_box, target2_box):
                                 rule_satisfied = True; break
                     
