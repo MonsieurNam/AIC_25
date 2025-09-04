@@ -155,7 +155,7 @@ def build_ui(connect_events_fn):
                             )
                             lambda_mmr_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.7, step=0.05, label="λ - MMR (Đa dạng hóa)")
                             initial_retrieval_slider = gr.Slider(
-                                minimum=50, maximum=1000, value=200, step=50,
+                                minimum=50, maximum=1000, value=500, step=50,
                                 label="Số lượng ứng viên thô (CLIP/FAISS)",
                                 info="Số lượng kết quả lấy ra ở vòng đầu tiên trước khi rerank. Tăng lên cho query khó, giảm xuống để tăng tốc độ."
                             )
