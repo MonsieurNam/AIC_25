@@ -239,10 +239,10 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
 # === HANDLERS CHO BẢNG ĐIỀU KHIỂN NỘP BÀI ===
 # ==============================================================================
 
-def add_to_submission_list(submission_list: list, candidate: dict, position: str):
+def add_to_submission_list(submission_list: list, candidate: dict, position: str, fps_map: dict):
     if not candidate:
         gr.Warning("Chưa có ứng viên Visual nào được chọn để thêm!")
-        return submission_list, format_submission_list_to_csv_string(submission_list)
+        return submission_list, format_submission_list_to_csv_string(submission_list, fps_map)
 
     if len(submission_list) >= MAX_SUBMISSION_RESULTS:
         gr.Warning(f"Danh sách đã đạt giới hạn {MAX_SUBMISSION_RESULTS} kết quả.")
@@ -258,12 +258,12 @@ def add_to_submission_list(submission_list: list, candidate: dict, position: str
             submission_list.append(item_to_add)
         gr.Success(f"Đã thêm kết quả Visual vào {'đầu' if position == 'top' else 'cuối'} danh sách!")
     
-    return submission_list, format_submission_list_to_csv_string(submission_list)
+    return submission_list, format_submission_list_to_csv_string(submission_list, fps_map)
 
-def add_transcript_result_to_submission(submission_list: list, results_state: pd.DataFrame, selected_index: int, position: str):
+def add_transcript_result_to_submission(submission_list: list, results_state: pd.DataFrame, selected_index: int, position: str, fps_map: dict):
     if selected_index is None or results_state is None or results_state.empty:
         gr.Warning("Chưa có kết quả Transcript nào được chọn để thêm!")
-        return submission_list, format_submission_list_to_csv_string(submission_list)
+        return submission_list, format_submission_list_to_csv_string(submission_list, fps_map)
     
     try:
         selected_row = results_state.iloc[selected_index]
@@ -273,14 +273,14 @@ def add_transcript_result_to_submission(submission_list: list, results_state: pd
             "keyframe_path": selected_row['keyframe_path'],
             "task_type": TaskType.KIS # Gán task_type mặc định
         }
-        return add_to_submission_list(submission_list, candidate, position)
+        return add_to_submission_list(submission_list, candidate, position, fps_map)
     except IndexError:
         gr.Warning("Lựa chọn không hợp lệ. Vui lòng chọn lại một dòng trong bảng.")
-        return submission_list, format_submission_list_to_csv_string(submission_list)
+        return submission_list, format_submission_list_to_csv_string(submission_list, fps_map)
 
-def sync_submission_state_to_editor(submission_list: list) -> str:
+def sync_submission_state_to_editor(submission_list: list, fps_map: dict) -> str:
     gr.Info("Bảng điều khiển đã được đồng bộ hóa với danh sách kết quả.")
-    return format_submission_list_to_csv_string(submission_list)
+    return format_submission_list_to_csv_string(submission_list, fps_map)
 
 def clear_submission_list():
     gr.Info("Đã xóa danh sách nộp bài.")
