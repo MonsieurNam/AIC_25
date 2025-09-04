@@ -83,7 +83,11 @@ class SemanticSearcher:
             
             total_rules = len(spatial_rules)
             satisfied_rules_count = 0
-            
+            is_debug_candidate = cand['keyframe_id'] in [c['keyframe_id'] for c in candidates[:5]]
+            if is_debug_candidate:
+                print(f"\n--- DEBUG: Phân tích không gian cho Keyframe: {cand['keyframe_id']} ---")
+                print(f"  - Rule: {rule['entity']} {rule['relation']} {rule['targets']}")
+                print(f"    -> Grounded: '{entity_grounded}' vs {targets_grounded}")
             # Lặp qua từng quy tắc mà Gemini đã cung cấp
             for rule in spatial_rules:
                 entity_original = rule['entity'].replace('_', ' ')
@@ -104,6 +108,8 @@ class SemanticSearcher:
                 for label in targets_grounded:
                     boxes = keyframe_objects_lower[keyframe_objects_lower['object_label'] == label]['bounding_box'].tolist()
                     target_boxes_lists.append(boxes)
+                if is_debug_candidate:
+                    print(f"    -> Tìm thấy: '{entity_grounded}' ({len(entity_boxes)} box), Targets ({[len(boxes) for boxes in target_boxes_lists]} boxes)")
 
                 # Nếu thiếu bất kỳ loại object nào, không thể thỏa mãn rule -> bỏ qua
                 if not entity_boxes or any(not boxes for boxes in target_boxes_lists):
@@ -140,7 +146,8 @@ class SemanticSearcher:
                             
                 if rule_satisfied:
                     satisfied_rules_count += 1
-            
+            if rule_satisfied and is_debug_candidate:
+                print(f"    -> ✅ QUY TẮC ĐƯỢC THỎA MÃN!")
             # Tính điểm cuối cùng: tỷ lệ các rule được thỏa mãn
             cand['scores']['spatial_score'] = satisfied_rules_count / total_rules if total_rules > 0 else 1.0
 
@@ -185,27 +192,29 @@ class SemanticSearcher:
                 if possible_objects.empty:
                     continue # Bỏ qua rule này nếu không có object khớp
 
-                best_object_series = possible_objects.loc[possible_objects['confidence_score'].idxmax()]
-                # Chuyển nó thành một dictionary để truy cập
-                best_object_dict = best_object_series.to_dict()
+                best_object_series = possible_objects.sort_values(by='confidence_score', ascending=False).iloc[0]
+    
+                # Lấy giá trị một cách an toàn và kiểm tra kiểu
+                confidence_value = best_object_series.get('confidence_score')
+                bounding_box_value = best_object_series.get('bounding_box')
 
-                # --- ✅ BẮT ĐẦU SỬA LỖI TẠI ĐÂY ---
-
-                # Lấy giá trị và ÉP KIỂU tường minh sang kiểu gốc của Python
-                confidence_value = float(best_object_dict.get('confidence_score', 0.0))
-                bounding_box_value = list(best_object_dict.get('bounding_box', []))
-
-                if not bounding_box_value:
+                # Kiểm tra kiểu dữ liệu trước khi sử dụng
+                if not isinstance(confidence_value, (int, float)):
+                    print(f"--- ⚠️ WARNING: Kiểu dữ liệu confidence_score không hợp lệ ({type(confidence_value)}) cho keyframe {keyframe_id}. Bỏ qua rule. ---")
                     continue
-
-                # Dòng này giờ sẽ hoàn toàn an toàn
-                cache_key = f"{keyframe_id}_{target_label}_{confidence_value:.4f}"
-                object_vector = self.object_vector_cache.get(cache_key)
+                    
+                if bounding_box_value is None:
+                    continue
                 
+                # Giờ thì chúng ta có thể yên tâm sử dụng
+                cache_key = f"{keyframe_id}_{target_label}_{confidence_value:.4f}"
+                
+                # --- KẾT THÚC THAY THẾ ---
+
                 if object_vector is None: # Cache miss
                     try:
-                        # Sử dụng bounding_box đã lấy ra
-                        cropped_image = crop_image_by_box(cand['keyframe_path'], bounding_box_value)
+                        # Ép kiểu bounding_box thành list để đảm bảo
+                        cropped_image = crop_image_by_box(cand['keyframe_path'], list(bounding_box_value))
                         with torch.no_grad():
                             image_features = self.clip_model.encode(cropped_image, convert_to_tensor=True, device=self.device)
                             image_features /= image_features.norm(dim=-1, keepdim=True)
