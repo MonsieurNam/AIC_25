@@ -86,17 +86,18 @@ class SemanticSearcher:
             is_debug_candidate = cand['keyframe_id'] in [c['keyframe_id'] for c in candidates[:5]]
             if is_debug_candidate:
                 print(f"\n--- DEBUG: Phân tích không gian cho Keyframe: {cand['keyframe_id']} ---")
-                print(f"  - Rule: {rule['entity']} {rule['relation']} {rule['targets']}")
-                print(f"    -> Grounded: '{entity_grounded}' vs {targets_grounded}")
             # Lặp qua từng quy tắc mà Gemini đã cung cấp
             for rule in spatial_rules:
                 entity_original = rule['entity'].replace('_', ' ')
                 relation = rule['relation']
                 targets_original = [t.replace('_', ' ') for t in rule['targets']]
                 
+                    
                 entity_grounded = grounding_map.get(entity_original, entity_original).lower() # <-- .lower()
                 targets_grounded = [grounding_map.get(t, t).lower() for t in targets_original] # <-- .lower()
-
+                if is_debug_candidate:
+                    print(f"  - Rule: {rule['entity']} {rule['relation']} {rule['targets']}")
+                    print(f"    -> Grounded: '{entity_grounded}' vs {targets_grounded}")
                 # Chuẩn hóa cột object_label về chữ thường MỘT LẦN cho mỗi keyframe
                 keyframe_objects_lower = keyframe_objects.copy()
                 keyframe_objects_lower['object_label'] = keyframe_objects_lower['object_label'].str.lower()
