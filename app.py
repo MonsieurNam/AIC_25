@@ -25,7 +25,9 @@ print("--- ✅ Toàn bộ Backend đã được nạp và sẵn sàng chiến đ
 print("--- Giai đoạn 3/4: Đang xây dựng giao diện và kết nối sự kiện...")
 search_with_backend = partial(handlers.perform_search, master_searcher=master_searcher)
 transcript_search_with_backend = partial(handlers.handle_transcript_search, transcript_searcher=transcript_searcher, fps_map=fps_map)
-# on_gallery_select_with_backend = partial(handlers.on_gallery_select, transcript_searcher=transcript_searcher)
+add_to_submission_with_backend = partial(handlers.add_to_submission_list, fps_map=fps_map)
+add_transcript_to_submission_with_backend = partial(handlers.add_transcript_result_to_submission, fps_map=fps_map)
+sync_submission_with_backend = partial(handlers.sync_submission_state_to_editor, fps_map=fps_map)
 def on_transcript_select_wrapper(results_state, query1, query2, query3, evt: gr.SelectData):
     return handlers.on_transcript_select(
         results_state=results_state, video_path_map=video_path_map,
@@ -112,32 +114,36 @@ def connect_event_listeners(ui_components):
         ],
         outputs=analysis_panel_outputs,
     )
+    
+    
     ui["add_top_button"].click(
-        fn=add_to_submission_with_backend,
+        fn=add_to_submission_with_backend, # <-- DÙNG PARTIAL MỚI
         inputs=[ui["submission_list_state"], ui["selected_candidate_for_submission"], gr.Textbox("top", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
     ui["add_bottom_button"].click(
-        fn=add_to_submission_with_backend,
+        fn=add_to_submission_with_backend, # <-- DÙNG PARTIAL MỚI
         inputs=[ui["submission_list_state"], ui["selected_candidate_for_submission"], gr.Textbox("bottom", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
     ui["add_transcript_top_button"].click(
-        fn=handlers.add_transcript_result_to_submission,
+        fn=add_transcript_to_submission_with_backend, # <-- DÙNG PARTIAL MỚI
         inputs=[ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_selected_index_state"], gr.Textbox("top", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
     ui["add_transcript_bottom_button"].click(
-        fn=handlers.add_transcript_result_to_submission,
+        fn=add_transcript_to_submission_with_backend, # <-- DÙNG PARTIAL MỚI
         inputs=[ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_selected_index_state"], gr.Textbox("bottom", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
     ui["refresh_submission_button"].click(
-        fn=sync_submission_with_backend,
+        fn=sync_submission_with_backend, # <-- DÙNG PARTIAL MỚI
         inputs=[ui["submission_list_state"]],
         outputs=[ui["submission_text_editor"]],
         queue=False
     )
+    
+    
     ui["clear_submission_button"].click(
         fn=handlers.clear_submission_list,
         inputs=None,

@@ -4,20 +4,20 @@ from typing import List, Dict, Any
 import os
 import json # <-- THÊM MỚI
 
-def format_submission_list_to_csv_string(submission_list: List[Dict]) -> str:
+def format_submission_list_to_csv_string(submission_list: List[Dict], fps_map: dict) -> str:
     """
     Chuyển danh sách nộp bài thành một chuỗi CSV để hiển thị và chỉnh sửa.
     """
     if not submission_list:
-        return "" # Trả về chuỗi rỗng nếu không có gì
+        return "" 
     
     # Tái sử dụng logic định dạng đã có để tạo DataFrame
-    df = format_list_for_submission(submission_list)
+    # TRUYỀN fps_map XUỐNG ĐÂY
+    df = format_list_for_submission(submission_list, fps_map=fps_map)
     
     if df.empty:
         return ""
         
-    # Chuyển DataFrame thành chuỗi CSV, không có header và index
     csv_string = df.to_csv(header=False, index=False)
     return csv_string
 
@@ -203,7 +203,7 @@ def generate_submission_file(df: pd.DataFrame, query_id: str, output_dir: str = 
     print(f"--- ✅ Đã tạo file nộp bài tại: {file_path} ---")
     return file_path
 
-def format_list_for_submission(submission_list: List[Dict], max_results: int = 100) -> pd.DataFrame:
+def format_list_for_submission(submission_list: List[Dict], fps_map: dict, max_results: int = 100) -> pd.DataFrame:
     """
     Định dạng một danh sách các dictionary kết quả thành DataFrame để nộp bài.
     PHIÊN BẢN V2: Tính toán số thứ tự frame chính xác bằng FPS_MAP.
@@ -224,7 +224,7 @@ def format_list_for_submission(submission_list: List[Dict], max_results: int = 1
                 continue
 
             # --- LOGIC TÍNH TOÁN CỐT LÕI ---
-            fps = FPS_MAP.get(video_id, DEFAULT_FPS)
+            fps = fps_map.get(video_id, DEFAULT_FPS)
             frame_number = round(timestamp * fps)
             # --- KẾT THÚC LOGIC CỐT LÕI ---
             
@@ -242,7 +242,7 @@ def format_list_for_submission(submission_list: List[Dict], max_results: int = 1
             if not video_id or not sequence:
                 continue
             
-            fps = FPS_MAP.get(video_id, DEFAULT_FPS)
+            fps = fps_map.get(video_id, DEFAULT_FPS)
             row = {'video_id': video_id}
             
             for i, frame in enumerate(sequence):
