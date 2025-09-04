@@ -25,9 +25,8 @@ print("--- ✅ Toàn bộ Backend đã được nạp và sẵn sàng chiến đ
 print("--- Giai đoạn 3/4: Đang xây dựng giao diện và kết nối sự kiện...")
 search_with_backend = partial(handlers.perform_search, master_searcher=master_searcher)
 transcript_search_with_backend = partial(handlers.handle_transcript_search, transcript_searcher=transcript_searcher, fps_map=fps_map)
-add_to_submission_with_backend = partial(handlers.add_to_submission_list, fps_map=fps_map)
-add_transcript_to_submission_with_backend = partial(handlers.add_transcript_result_to_submission, fps_map=fps_map)
-sync_submission_with_backend = partial(handlers.sync_submission_state_to_editor, fps_map=fps_map)
+calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=fps_map)
+
 def on_transcript_select_wrapper(results_state, query1, query2, query3, evt: gr.SelectData):
     return handlers.on_transcript_select(
         results_state=results_state, video_path_map=video_path_map,
@@ -44,9 +43,15 @@ def on_gallery_select_wrapper(response_state, current_page, query_input, evt: gr
         transcript_searcher=transcript_searcher, # Lấy từ scope ngoài
         evt=evt
     )
-calculate_frame_with_backend = partial(handlers.calculate_frame_number, fps_map=fps_map)
-add_to_submission_with_backend = partial(handlers.add_to_submission_list)
-sync_submission_with_backend = partial(handlers.sync_submission_state_to_editor, fps_map=fps_map)
+def add_to_submission_wrapper(submission_list, candidate, position):
+        return handlers.add_to_submission_list(submission_list, candidate, position, fps_map)
+
+def add_transcript_result_wrapper(submission_list, results_state, selected_index, position):
+    return handlers.add_transcript_result_to_submission(submission_list, results_state, selected_index, position, fps_map)
+
+def sync_submission_wrapper(submission_list):
+    return handlers.sync_submission_state_to_editor(submission_list, fps_map)
+
 
 def connect_event_listeners(ui_components):
     """
@@ -108,36 +113,36 @@ def connect_event_listeners(ui_components):
         fn=on_transcript_select_wrapper,
         inputs=[
             ui["transcript_results_state"],
-            ui["transcript_query_1"], # <-- Thêm input
-            ui["transcript_query_2"], # <-- Thêm input
-            ui["transcript_query_3"]  # <-- Thêm input
+            ui["transcript_query_1"], 
+            ui["transcript_query_2"], 
+            ui["transcript_query_3"]  
         ],
         outputs=analysis_panel_outputs,
     )
     
     
     ui["add_top_button"].click(
-        fn=add_to_submission_with_backend, # <-- DÙNG PARTIAL MỚI
+        fn=add_to_submission_wrapper, 
         inputs=[ui["submission_list_state"], ui["selected_candidate_for_submission"], gr.Textbox("top", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
     ui["add_bottom_button"].click(
-        fn=add_to_submission_with_backend, # <-- DÙNG PARTIAL MỚI
+        fn=add_to_submission_wrapper, 
         inputs=[ui["submission_list_state"], ui["selected_candidate_for_submission"], gr.Textbox("bottom", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
     ui["add_transcript_top_button"].click(
-        fn=add_transcript_to_submission_with_backend, # <-- DÙNG PARTIAL MỚI
+        fn=add_transcript_result_wrapper, 
         inputs=[ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_selected_index_state"], gr.Textbox("top", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
     ui["add_transcript_bottom_button"].click(
-        fn=add_transcript_to_submission_with_backend, # <-- DÙNG PARTIAL MỚI
+        fn=add_transcript_result_wrapper, 
         inputs=[ui["submission_list_state"], ui["transcript_results_state"], ui["transcript_selected_index_state"], gr.Textbox("bottom", visible=False)],
         outputs=[ui["submission_list_state"], ui["submission_text_editor"]]
     )
     ui["refresh_submission_button"].click(
-        fn=sync_submission_with_backend, # <-- DÙNG PARTIAL MỚI
+        fn=sync_submission_wrapper, 
         inputs=[ui["submission_list_state"]],
         outputs=[ui["submission_text_editor"]],
         queue=False
