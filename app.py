@@ -204,7 +204,7 @@ app, ui_components = build_ui(connect_event_listeners)
 
 if __name__ == "__main__":
     print("--- 🚀 Khởi chạy Gradio App Server (Hạm đội Gọng Kìm Kép - Phiên bản Hoàn thiện) ---")
-    final_allowed_paths = [VIDEO_BASE_PATH, KEYFRAME_BASE_PATH, "/kaggle/working/","/kaggle/working/"]
+    final_allowed_paths = [VIDEO_BASE_PATH, KEYFRAME_BASE_PATH, "/kaggle/input/","/kaggle/working/"]
     print(f"--- 🔑 Cấp phép truy cập cho các đường dẫn: {final_allowed_paths} ---")
 
     app.launch(
