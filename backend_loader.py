@@ -94,7 +94,7 @@ def initialize_backend():
     fps_map = {}
     
     # ✅ NÂNG CẤP GIAI ĐOẠN 3: Tải file FPS map đã hợp nhất từ /kaggle/working/
-    fps_map_path = "/kaggle/working/video_fps_map_combined.json" 
+    fps_map_path = "/kaggle/input/stage1/video_fps_map_combined.json" 
     
     if os.path.exists(fps_map_path):
         try:
