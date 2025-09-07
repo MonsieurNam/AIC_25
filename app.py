@@ -11,7 +11,8 @@ from functools import partial
 from backend_loader import initialize_backend
 from ui_layout import build_ui
 import event_handlers as handlers
-from config import VIDEO_BASE_PATH, KEYFRAME_BASE_PATH 
+# from config import VIDEO_BASE_PATH, KEYFRAME_BASE_PATH 
+from config import VIDEO_BASE_PATHS, KEYFRAME_BASE_PATHS
 
 print("--- Giai đoạn 2/4: Đang khởi tạo các Động cơ Backend...")
 backend_objects = initialize_backend()
@@ -204,9 +205,12 @@ app, ui_components = build_ui(connect_event_listeners)
 
 if __name__ == "__main__":
     print("--- 🚀 Khởi chạy Gradio App Server (Hạm đội Gọng Kìm Kép - Phiên bản Hoàn thiện) ---")
-    final_allowed_paths = [VIDEO_BASE_PATH, KEYFRAME_BASE_PATH, "/kaggle/input/","/kaggle/working/"]
-    print(f"--- 🔑 Cấp phép truy cập cho các đường dẫn: {final_allowed_paths} ---")
-
+    final_allowed_paths =  VIDEO_BASE_PATHS + KEYFRAME_BASE_PATHS +["/kaggle/input/","/kaggle/working/"]
+    print(f"--- 🔑 Cấp phép truy cập cho {len(final_allowed_paths)} đường dẫn và thư mục con... ---")
+    # In ra một vài đường dẫn để xác nhận
+    print(f"   -> Ví dụ: {final_allowed_paths[:2]}...")
+    print(f"   -> Và: {final_allowed_paths[-1]}")
+    
     app.launch(
         share=True,
         allowed_paths=final_allowed_paths, # <-- Sử dụng danh sách đã hoàn thiện
