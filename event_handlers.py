@@ -342,20 +342,21 @@ def calculate_frame_number(video_id: str, time_input: str, fps_map: dict):
     except Exception:
         return f"Lỗi: Định dạng thời gian '{time_input}' không hợp lệ."
 
+# Sửa lại event_handlers.py
+
 def clear_all():
-    # Tập hợp tất cả các giá trị reset vào một tuple lớn
     return (
-        # Mắt Thần
+        # Mắt Thần (7)
         "", gr.Gallery(value=None), "", None, [], 1, "Trang 1 / 1",
-        # Tai Thính
+        # Tai Thính (6)
         "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(), None,
-        # Trạm Phân tích Hợp nhất
-        None, None, "", "", "", None,
-        # Bảng điều khiển Nộp bài
+        # Trạm Phân tích Hợp nhất (5)
+        None, None, "", "", None, #<-- SỬA LẠI THÀNH 5 GIÁ TRỊ
+        # Bảng điều khiển Nộp bài (2)
         [], "",
-        # Máy tính
+        # Máy tính (3)
         "", "", "",
-        # Vùng Xuất file
+        # Vùng Xuất file (2)
         "", None
     )
     
