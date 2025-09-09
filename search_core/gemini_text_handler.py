@@ -1,3 +1,14 @@
+# ==============================================================================
+# GEMINI TEXT HANDLER - PHIÊN BẢN CUỐI CÙNG (ENTITY-AWARE)
+# File: gemini_text_handler.py
+#
+# THAY ĐỔI CỐT LÕI:
+#   - Sửa đổi SYSTEM_PROMPT để tích hợp "Từ điển Đối tượng Toàn cục",
+#     hướng dẫn Gemini ưu tiên sử dụng các nhãn thực thể đã biết.
+#   - Tối ưu hóa việc tạo prompt để tăng độ chính xác của Semantic Grounding
+#     và phân tích không gian.
+# ==============================================================================
+
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from typing import Dict, Any, List, Set
@@ -6,109 +17,24 @@ import re
 
 from utils import api_retrier
 
-SYSTEM_PROMPT = """
-You are a highly precise multimedia scene analyst for a Vietnamese video search engine. Your task is to deconstruct a user's query into a structured, machine-readable JSON object. Your SOLE output must be a single, valid JSON object and nothing else. Adhere strictly to the specified formats and keywords.
-
-Analyze the user query to extract three components:
-
-1.  **`search_context` (string):**
-    *   This is a conceptual summary. IGNORE specific, verifiable details like exact counts ("three people"), colors ("red shirt"), or text on signs.
-    *   FOCUS on the **core activity, environment, and overall theme**.
-    *   Good Example: For "a girl in a red dress with a yellow balloon", the context is "a child enjoying an outdoor festival or celebration".
-    *   Bad Example: "a girl with a red dress and yellow balloon". (This is just paraphrasing, not summarizing).
-
-2.  **`spatial_rules` (list of objects):**
-    *   Identify ALL explicit spatial relationships.
-    *   For each, create an object with `entity`, `relation`, and `targets`.
-    *   **`relation` MUST be one of these exact keywords:** `is_between`, `is_behind`, `is_next_to`, `is_above`, `is_below`, `is_on`, `is_inside`.
-    *   **`entity` and `targets`**: Use descriptive, snake_cased English labels (e.g., "person_white_shirt", "black_car"). If there are multiple indistinct items, use the singular form (e.g., for "between two men", use targets: ["man", "man"]).
-    *   If no spatial relationships are mentioned, this MUST be an empty list `[]`.
-
-3.  **`fine_grained_verification` (list of objects):**
-    *   Identify objects with highly specific visual descriptions (unique colors, patterns, parts, etc.). These are details the main context search would miss.
-    *   For each, create an object with two fields:
-        *   `target_entity` (string): The general, common, single-word English class name of the object (e.g., "Bird", "Flower", "Car", "Dessert").
-        *   `detailed_description` (string): A full, descriptive English sentence detailing the object's specific visual characteristics as mentioned in the query. Include all mentioned details.
-    *   Example: For "a bird with bright red eyes and blue-black feathers", the object would be:
-        `{"target_entity": "Bird", "detailed_description": "a bird with bright red eyes and blue-black feathers"}`
-    *   If no such detailed descriptions exist, this MUST be an empty list `[]`.
-
----
-**COMPREHENSIVE EXAMPLE 1 (Spatial Focus):**
-User Query: "Find a clip of three people (a woman in a white shirt sitting between two men in black shirts) playing instruments, with a bookshelf behind them."
-
-Your JSON output:
-{
-  "search_context": "a group of people playing musical instruments in a cozy, indoor setting like a library or studio",
-  "spatial_rules": [
-    {
-      "entity": "woman_white_shirt",
-      "relation": "is_between",
-      "targets": ["man_black_shirt", "man_black_shirt"]
-    },
-    {
-      "entity": "bookshelf",
-      "relation": "is_behind",
-      "targets": ["woman_white_shirt"]
-    }
-  ],
-  "fine_grained_verification": []
-}
-
----
-**COMPREHENSIVE EXAMPLE 2 (Fine-grained Focus):**
-User Query: "On a white plate, there is a panna cotta dessert decorated with red grape slices, a green mint leaf, and two small edible flowers (one red, one yellow)."
-
-Your JSON output:
-{
-  "search_context": "a close-up shot of a gourmet dessert, panna cotta, being plated or displayed",
-  "spatial_rules": [
-    {
-      "entity": "panna_cotta_dessert",
-      "relation": "is_on",
-      "targets": ["white_plate"]
-    }
-  ],
-  "fine_grained_verification": [
-    {
-      "target_entity": "Grape",
-      "detailed_description": "slices of red grapes used as a garnish on a dessert"
-    },
-    {
-      "target_entity": "Mint",
-      "detailed_description": "a fresh green mint leaf on a dessert"
-    },
-    {
-      "target_entity": "Flower",
-      "detailed_description": "a small, edible red and yellow flower for decoration"
-    }
-  ]
-}
-
-Now, analyze the user's query and provide ONLY the JSON output.
-"""
-
 class GeminiTextHandler:
     """
     Một class chuyên dụng để xử lý TẤT CẢ các tác vụ liên quan đến văn bản
-    bằng API của Google Gemini (cụ thể là model Flash).
-    
-    Bao gồm: phân loại tác vụ, phân tích chi tiết truy vấn, và phân rã truy vấn TRAKE.
+    bằng API của Google Gemini. PHIÊN BẢN NÂNG CẤP (ENTITY-AWARE).
     """
 
-    def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str, model_name: str = "gemini-1.5-flash"):
         """
         Khởi tạo và xác thực Gemini Text Handler.
-        PHIÊN BẢN ĐÃ SỬA LỖI: Lưu trữ generation_config và safety_settings.
         """
         print(f"--- ✨ Khởi tạo Gemini Text Handler với model: {model_name} ---")
         
         try:
             genai.configure(api_key=api_key)
             self.model = genai.GenerativeModel(model_name)
-            self.known_entities_prompt_segment: str = "" # Sẽ được nạp sau
+            self.known_entities_prompt_segment: str = "[]" # Mặc định là list rỗng dạng chuỗi
             
-            # --- ✅ LƯU TRỮ CÁC CẤU HÌNH THÀNH THUỘC TÍNH CỦA CLASS ---
+            # --- Cấu hình API call ---
             self.generation_config = {
                 "temperature": 0.1,
                 "top_p": 0.95,
@@ -116,117 +42,114 @@ class GeminiTextHandler:
                 "max_output_tokens": 8192,
                 "response_mime_type": "application/json",
             }
-            
-            # Cấu hình an toàn để tránh bị block do các nội dung nhạy cảm
             self.safety_settings = {
-                'HATE': 'BLOCK_NONE',
-                'HARASSMENT': 'BLOCK_NONE',
-                'SEXUAL': 'BLOCK_NONE',
-                'DANGEROUS': 'BLOCK_NONE'
+                'HATE': 'BLOCK_NONE', 'HARASSMENT': 'BLOCK_NONE',
+                'SEXUAL': 'BLOCK_NONE', 'DANGEROUS': 'BLOCK_NONE'
             }
             
             # --- Xác thực API Key bằng một lệnh gọi nhỏ ---
             print("--- 🩺 Đang thực hiện kiểm tra trạng thái API Gemini... ---")
-            # Lệnh gọi đơn giản để kiểm tra xem API key có hoạt động không
             self.model.count_tokens("test") 
             print("--- ✅ Trạng thái API Gemini: OK ---")
-            print("--- ✅ Gemini Text Handler đã được khởi tạo và xác thực thành công! ---")
 
         except Exception as e:
             print(f"--- ❌ Lỗi nghiêm trọng khi khởi tạo Gemini Handler: {e} ---")
             print("    -> Vui lòng kiểm tra lại API Key và kết nối mạng.")
-            # Ném lại lỗi để quá trình khởi tạo backend có thể dừng lại nếu cần
             raise e
+
+    def _get_system_prompt(self) -> str:
+        """
+        Hàm tạo ra SYSTEM_PROMPT động, nhúng danh sách thực thể đã biết vào.
+        Đây là phần nâng cấp cốt lõi để Gemini "nhận thức" được từ điển của hệ thống.
+        """
+        return f"""
+You are a highly precise multimedia scene analyst for a Vietnamese video search engine. Your task is to deconstruct a user's query into a structured, machine-readable JSON object. Your SOLE output must be a single, valid JSON object and nothing else. Adhere strictly to the specified formats and keywords.
+
+**IMPORTANT RULE:** When creating `entity` and `targets` for `spatial_rules`, you MUST prioritize using a label from this list of KNOWN ENTITIES if it is relevant: {self.known_entities_prompt_segment}. This is crucial for the system to understand. For example, if the user mentions a "giant crab symbol" and "building" is in the KNOWN ENTITIES list, you should prefer using "building". If no known entity is a good fit, you may create a new descriptive label.
+
+Analyze the user query to extract three components:
+1.  **`search_context` (string):**
+    *   This is a conceptual summary. IGNORE specific, verifiable details like exact counts ("three people"), colors ("red shirt"), or text on signs.
+    *   FOCUS on the **core activity, environment, and overall theme**.
+    *   Good Example: For "a girl in a red dress with a yellow balloon", the context is "a child enjoying an outdoor festival or celebration".
+
+2.  **`spatial_rules` (list of objects):**
+    *   Identify ALL explicit spatial relationships.
+    *   For each, create an object with `entity`, `relation`, and `targets`.
+    *   **`relation` MUST be one of these exact keywords:** `is_between`, `is_behind`, `is_next_to`, `is_above`, `is_below`, `is_on`, `is_inside`.
+    *   **`entity` and `targets`**: Use descriptive, snake_cased English labels (e.g., "person_white_shirt", "black_car"). Remember to use labels from the KNOWN ENTITIES list when possible.
+
+3.  **`fine_grained_verification` (list of objects):**
+    *   Identify objects with highly specific visual descriptions.
+    *   For each, create an object with `target_entity` (the general, common, single-word English class name, e.g., "Bird", "Car") and `detailed_description` (the full descriptive English sentence).
+
+---
+**COMPREHENSIVE EXAMPLE:**
+User Query: "Find a clip of three people (a woman in a white shirt sitting between two men in black shirts) playing instruments, with a bookshelf behind them."
+
+Your JSON output:
+{{
+  "search_context": "a group of people playing musical instruments in a cozy, indoor setting like a library or studio",
+  "spatial_rules": [
+    {{
+      "entity": "woman",
+      "relation": "is_between",
+      "targets": ["man", "man"]
+    }},
+    {{
+      "entity": "bookshelf",
+      "relation": "is_behind",
+      "targets": ["woman"]
+    }}
+  ],
+  "fine_grained_verification": []
+}}
+---
+Now, analyze the user's query and provide ONLY the JSON output.
+"""
 
     @api_retrier(max_retries=3, initial_delay=1)
-    def _gemini_text_call(self, prompt: str):
-        """Hàm con được "trang trí", chỉ để thực hiện lệnh gọi API text của Gemini."""
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
-        generation_config = genai.types.GenerationConfig(response_mime_type="application/json")
-        response = self.model.generate_content(prompt, safety_settings=safety_settings, generation_config=generation_config)
-        return response
+    def _gemini_api_call(self, content_list: list) -> genai.GenerativeModel.generate_content:
+        """Hàm con được "trang trí", chuyên thực hiện lệnh gọi API của Gemini."""
+        return self.model.generate_content(
+            content_list,
+            generation_config=self.generation_config,
+            safety_settings=self.safety_settings
+        )
 
-    def health_check(self):
-        """Thực hiện một lệnh gọi API đơn giản để kiểm tra key và kết nối."""
-        print("--- 🩺 Đang thực hiện kiểm tra trạng thái API Gemini... ---")
-        try:
-            self.model.count_tokens("kiểm tra")
-            print("--- ✅ Trạng thái API Gemini: OK ---")
-            return True
-        except Exception as e:
-            print(f"--- ❌ Lỗi API Gemini: {e} ---")
-            raise e
-
-    def analyze_task_type(self, query: str) -> str:
-        """Phân loại truy vấn bằng Gemini, sử dụng prompt có Quy tắc Ưu tiên."""
-        prompt = f"""
-        You are a highly precise query classifier. Your task is to classify a Vietnamese query into one of four categories: TRAKE, QNA, or KIS. You MUST follow a strict priority order.
-
-        **Priority Order for Classification (Check from top to bottom):**
-        
-        1.  **First, check for TRAKE:** Does the query ask for a SEQUENCE of DIFFERENT, ordered actions? Look for patterns like "(1)...(2)...", "bước 1... bước 2", "sau đó". If it matches, classify as **TRAKE** and stop.
-            - Example: "người đàn ông đứng lên rồi bước đi"
-
-        2.  **Then, check for QNA:** If not TRAKE, does the query ask a **direct question** that expects a factual answer about something in the scene? This is more than just describing a scene. Look for:
-            - **Interrogative words:** "ai", "cái gì", "ở đâu", "khi nào", "tại sao", "như thế nào", "màu gì", "hãng nào", etc.
-            - **Question structures:** "có phải là...", "đang làm gì", "là ai", "trông như thế nào".
-            - A question mark "?".
-            If it matches, classify as **QNA** and stop.
-            - Example: "người phụ nữ mặc áo màu gì?" -> QNA
-            - Example: "ai là người đàn ông đang phát biểu?" -> QNA
-            - Example: "có bao nhiêu chiếc xe trên đường?" -> This asks for a count of a single scene, so it is **QNA**. 
-
-        3.  **Default to KIS:** If the query is a statement or a descriptive phrase looking for a moment, classify as **KIS**. It describes "what to find", not "what to answer".
-            - Example: "cảnh người đàn ông đang phát biểu" -> KIS
-            - Example: "tìm người phụ nữ mặc áo đỏ" -> KIS
-            - Example: "một chiếc xe đang chạy" -> KIS
-
-        **Your Task:**
-        Follow the priority order strictly. Analyze the query below and return ONLY the final category as a single word.
-
-        **Query:** "{query}"
-        **Category:**
+    def load_known_entities(self, known_entities: Set[str]):
         """
-        try:
-            response = self._gemini_text_call(prompt)
-            task_type = response.text.strip().upper()
-            if task_type in ["KIS", "QNA", "TRAKE"]:
-                return task_type
-            return "KIS"
-        except Exception:
-            return "KIS" # Fallback an toàn
+        Chuẩn bị và cache lại phần prompt chứa từ điển đối tượng.
+        Chỉ cần gọi một lần khi MasterSearcher khởi tạo.
+        """
+        if not known_entities:
+            print("--- ⚠️ Từ điển đối tượng rỗng. Semantic Grounding sẽ không hoạt động tối ưu. ---")
+            return
         
+        sorted_entities = sorted(list(known_entities))
+        # Định dạng thành chuỗi JSON để nhúng vào prompt
+        self.known_entities_prompt_segment = json.dumps(sorted_entities)
+        print(f"--- ✅ GeminiTextHandler: Đã nạp {len(sorted_entities)} thực thể vào bộ nhớ prompt. ---")
+
     def analyze_query_fully(self, query: str) -> Dict[str, Any]:
         """
         Phân tích sâu một truy vấn, trích xuất ngữ cảnh, đối tượng, và các quy tắc.
-        PHIÊN BẢN NÂNG CẤP: Xử lý output JSON có cấu trúc.
         """
-        print("--- ✨ Bắt đầu phân tích truy vấn có cấu trúc bằng Gemini... ---")
+        print("--- ✨ Bắt đầu phân tích truy vấn có cấu trúc bằng Gemini (Entity-Aware)... ---")
         
-        user_prompt = f"Entities Dictionary for Grounding: {self.known_entities_prompt_segment}\n\nUser Query: \"{query}\""
+        system_prompt = self._get_system_prompt()
+        user_prompt = f"User Query: \"{query}\""
         
         try:
-            response = self.model.generate_content(
-                [SYSTEM_PROMPT, user_prompt],
-                generation_config=self.generation_config,
-                safety_settings=self.safety_settings
-            )
-            
+            response = self._gemini_api_call([system_prompt, user_prompt])
             raw_response_text = response.text.strip()
             
             try:
                 if raw_response_text.startswith("```json"):
-                    raw_response_text = raw_response_text[7:]
-                if raw_response_text.endswith("```"):
-                    raw_response_text = raw_response_text[:-3]
-
+                    raw_response_text = raw_response_text[7:-3].strip()
                 analysis_json = json.loads(raw_response_text)
                 
+                # Trích xuất các thực thể cần được "grounding" sau này
                 entities_to_ground = set()
                 if 'spatial_rules' in analysis_json and isinstance(analysis_json['spatial_rules'], list):
                     for rule in analysis_json['spatial_rules']:
@@ -237,77 +160,51 @@ class GeminiTextHandler:
                                 if isinstance(target, str):
                                     entities_to_ground.add(target.replace('_', ' '))
                 analysis_json['entities_to_ground'] = list(entities_to_ground)
-
                 return analysis_json
 
             except json.JSONDecodeError:
-                print(f"--- ⚠️ Lỗi: Gemini không trả về JSON hợp lệ. Sử dụng fallback. ---")
-                print(f"    Raw response: {raw_response_text}")
-                return {
-                    "search_context": query, # Dùng query gốc làm context
-                    "spatial_rules": [],
-                    "fine_grained_verification": [],
-                    "grounded_entities": []
-                }
+                print(f"--- ⚠️ Lỗi: Gemini không trả về JSON hợp lệ. Sử dụng fallback. Raw response: {raw_response_text}")
+                return {"search_context": query, "spatial_rules": [], "fine_grained_verification": [], "entities_to_ground": []}
 
         except Exception as e:
             print(f"--- ❌ Lỗi nghiêm trọng khi gọi API Gemini: {e} ---")
-            import traceback
-            traceback.print_exc()
-            # Fallback trong trường hợp API lỗi
-            return {
-                "search_context": query,
-                "spatial_rules": [],
-                "fine_grained_verification": [],
-                "grounded_entities": []
-            }
+            return {"search_context": query, "spatial_rules": [], "fine_grained_verification": [], "entities_to_ground": []}
 
-    def enhance_query(self, query: str) -> Dict[str, Any]:
-        """Phân tích và trích xuất thông tin truy vấn bằng Gemini."""
-        fallback_result = {
-            'search_context': query, 'specific_question': "", 'aggregation_instruction': "",
-            'objects_vi': [], 'objects_en': []
-        }
-        prompt = f"""
-        Analyze a Vietnamese user query for a video search system. **Return ONLY a valid JSON object** with five keys: "search_context", "specific_question", "aggregation_instruction", "objects_vi", and "objects_en".
-
-        **Rules:**
-        1.  `search_context`: A Vietnamese phrase for finding the general scene. This is used for vector search.
-        2.  `specific_question`: The specific question to ask the Vision model for EACH individual frame.
-        3.  `aggregation_instruction`: The final instruction for the AI to synthesize all individual answers. This should reflect the user's ultimate goal (e.g., counting, listing, summarizing).
-        4.  `objects_vi`: A list of Vietnamese nouns/entities.
-        5.  `objects_en`: The English translation for EACH item in `objects_vi`.
-
-        **Example (VQA):**
-        Query: "Trong video quay cảnh bữa tiệc, người phụ nữ mặc váy đỏ đang cầm ly màu gì?"
-        JSON: {{"search_context": "cảnh bữa tiệc có người phụ nữ mặc váy đỏ", "specific_question": "cô ấy đang cầm ly màu gì?", "aggregation_instruction": "trả lời câu hỏi người phụ nữ cầm ly màu gì", "objects_vi": ["bữa tiệc", "người phụ nữ", "váy đỏ"], "objects_en": ["party", "woman", "red dress"]}}
-
-        **Example (Track-VQA):**
-        Query: "đếm xem có bao nhiêu con lân trong buổi biểu diễn"
-        JSON: {{"search_context": "buổi biểu diễn múa lân", "specific_question": "có con lân nào trong ảnh này không và màu gì?", "aggregation_instruction": "từ các quan sát, đếm tổng số lân và liệt kê màu sắc của chúng", "objects_vi": ["con lân", "buổi biểu diễn"], "objects_en": ["lion dance", "performance"]}}
-
-        **Your Task:**
-        Analyze the query below and generate the JSON.
-
-        **Query:** "{query}"
-        **JSON:**
+    def perform_semantic_grounding(self, entities_to_ground: List[str]) -> Dict[str, str]:
         """
+        Dịch các nhãn entity tự do về các nhãn chuẩn có trong từ điển.
+        """
+        if not entities_to_ground or self.known_entities_prompt_segment == "[]":
+            return {}
+
+        print(f"--- 🧠 Bắt đầu Semantic Grounding cho: {entities_to_ground} ---")
+        
+        prompt = (
+            f"You are a helpful assistant. Your task is to map a list of input entities to the closest matching entities from a predefined dictionary.\n\n"
+            f"**Predefined Dictionary:**\n{self.known_entities_prompt_segment}\n\n"
+            f"**Input Entities to Map:**\n{json.dumps(entities_to_ground)}\n\n"
+            f"Provide your answer ONLY as a valid JSON object mapping each input entity to its corresponding dictionary term. The keys of the JSON must be the original input entities."
+        )
+        
         try:
-            response = self._gemini_text_call(prompt)
-            # Trích xuất JSON từ markdown block (Gemini thường trả về như vậy)
-            match = re.search(r"```json\s*(\{.*?\})\s*```", response.text, re.DOTALL)
-            if not match:
-                match = re.search(r"(\{.*?\})", response.text, re.DOTALL) # Thử tìm JSON không có markdown
+            response = self._gemini_api_call([prompt])
+            raw_response_text = response.text.strip()
+            if raw_response_text.startswith("```json"):
+                raw_response_text = raw_response_text[7:-3].strip()
             
-            if match:
-                result = json.loads(match.group(1))
-                # Validate ...
-                return result
-            return fallback_result
+            grounding_map = json.loads(raw_response_text)
+            print(f"    -> Kết quả Grounding Map: {grounding_map}")
+            
+            if not isinstance(grounding_map, dict):
+                print(f"--- ⚠️ Lỗi Grounding: Gemini không trả về dictionary. Fallback. ---")
+                return {}
+            return grounding_map
+
         except Exception as e:
-            print(f"Lỗi Gemini enhance_query: {e}")
-            return fallback_result
+            print(f"--- ⚠️ Lỗi trong quá trình Semantic Grounding: {e} ---")
+            return {}
             
+    # --- CÁC HÀM CŨ KHÔNG THAY ĐỔI ---
     def decompose_trake_query(self, query: str) -> List[str]:
         """Phân rã truy vấn TRAKE bằng Gemini."""
         prompt = f"""
@@ -321,77 +218,10 @@ class GeminiTextHandler:
         JSON:
         """
         try:
-            response = self._gemini_text_call(prompt)
+            response = self._gemini_api_call([prompt])
             match = re.search(r"\[.*?\]", response.text, re.DOTALL)
             if match:
                 return json.loads(match.group(0))
             return [query]
         except Exception:
             return [query]
-        
-    def load_known_entities(self, known_entities: Set[str]):
-        """
-        Chuẩn bị và cache lại phần prompt chứa từ điển đối tượng.
-        Chỉ cần gọi một lần khi MasterSearcher khởi tạo.
-        """
-        if not known_entities:
-            print("--- ⚠️ Từ điển đối tượng rỗng. Semantic Grounding sẽ không hoạt động. ---")
-            return
-        
-        # Sắp xếp để đảm bảo prompt nhất quán giữa các lần chạy
-        sorted_entities = sorted(list(known_entities))
-        # Định dạng thành chuỗi JSON để nhúng vào prompt
-        self.known_entities_prompt_segment = json.dumps(sorted_entities)
-        print(f"--- ✅ GeminiTextHandler: Đã nạp {len(sorted_entities)} thực thể vào bộ nhớ prompt. ---")
-
-    def perform_semantic_grounding(self, entities_to_ground: List[str]) -> Dict[str, str]:
-        """
-        Dịch các nhãn entity tự do về các nhãn chuẩn có trong từ điển.
-        PHIÊN BẢN NÂNG CẤP: Trả về một dictionary mapping: {entity_gốc: entity_đã_dịch}.
-        """
-        if not entities_to_ground or not self.known_entities_prompt_segment:
-            return {}
-
-        print(f"--- 🧠 Bắt đầu Semantic Grounding cho: {entities_to_ground} ---")
-        
-        # Prompt được thiết kế để yêu cầu Gemini trả về JSON object
-        prompt = (
-            f"You are a helpful assistant. Your task is to map a list of input entities to the closest matching entities from a predefined dictionary. "
-            f"For each input entity, find the single most appropriate term from the dictionary.\n\n"
-            f"**Predefined Dictionary:**\n{self.known_entities_prompt_segment}\n\n"
-            f"**Input Entities to Map:**\n{json.dumps(entities_to_ground)}\n\n"
-            f"Provide your answer ONLY as a valid JSON object mapping each input entity to its corresponding dictionary term. "
-            f"The keys of the JSON must be the original input entities. "
-            f"Example format: {{\"input entity 1\": \"dictionary term 1\", \"input entity 2\": \"dictionary term 2\"}}"
-        )
-        
-        try:
-            # Sử dụng generation_config đã được định nghĩa trong __init__
-            response = self.model.generate_content(
-                prompt,
-                generation_config=self.generation_config,
-                safety_settings=self.safety_settings
-            )
-            
-            # Xử lý response text để đảm bảo nó là JSON hợp lệ
-            raw_response_text = response.text.strip()
-            if raw_response_text.startswith("```json"):
-                raw_response_text = raw_response_text[7:]
-            if raw_response_text.endswith("```"):
-                raw_response_text = raw_response_text[:-3]
-
-            # Parse chuỗi JSON thành dictionary
-            grounding_map = json.loads(raw_response_text)
-            print(f"    -> Kết quả Grounding Map: {grounding_map}")
-            
-            # Kiểm tra xem output có phải là dictionary không
-            if not isinstance(grounding_map, dict):
-                print(f"--- ⚠️ Lỗi Grounding: Gemini không trả về dictionary. Fallback. ---")
-                return {}
-
-            return grounding_map
-
-        except (json.JSONDecodeError, Exception) as e:
-            print(f"--- ⚠️ Lỗi trong quá trình Semantic Grounding: {e} ---")
-            # Fallback: Trả về mapping rỗng nếu có lỗi
-            return {}
