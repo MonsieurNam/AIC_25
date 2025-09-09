@@ -59,54 +59,55 @@ class GeminiTextHandler:
 
     def _get_system_prompt(self) -> str:
         """
-        Hàm tạo ra SYSTEM_PROMPT động, nhúng danh sách thực thể đã biết vào.
-        Đây là phần nâng cấp cốt lõi để Gemini "nhận thức" được từ điển của hệ thống.
+        Hàm tạo ra SYSTEM_PROMPT động, nhúng danh sách 600 thực thể của OpenImagesV4.
+        Đây là phiên bản "chuyên gia", được tối ưu hóa cho dữ liệu của cuộc thi.
         """
         return f"""
-You are a highly precise multimedia scene analyst for a Vietnamese video search engine. Your task is to deconstruct a user's query into a structured, machine-readable JSON object. Your SOLE output must be a single, valid JSON object and nothing else. Adhere strictly to the specified formats and keywords.
+    You are a highly precise multimedia scene analyst. Your task is to deconstruct a user's query into a structured JSON object. Your analysis is for a video search engine whose object detection system is based on the **OpenImagesV4 dataset**.
 
-**IMPORTANT RULE:** When creating `entity` and `targets` for `spatial_rules`, you MUST prioritize using a label from this list of KNOWN ENTITIES if it is relevant: {self.known_entities_prompt_segment}. This is crucial for the system to understand. For example, if the user mentions a "giant crab symbol" and "building" is in the KNOWN ENTITIES list, you should prefer using "building". If no known entity is a good fit, you may create a new descriptive label.
+    **CRITICAL INSTRUCTION: The detection system ONLY knows the following 600 object classes. When creating `entity` and `targets` for `spatial_rules`, you MUST use the EXACT labels from this list. This is the most important rule.**
 
-Analyze the user query to extract three components:
-1.  **`search_context` (string):**
-    *   This is a conceptual summary. IGNORE specific, verifiable details like exact counts ("three people"), colors ("red shirt"), or text on signs.
-    *   FOCUS on the **core activity, environment, and overall theme**.
-    *   Good Example: For "a girl in a red dress with a yellow balloon", the context is "a child enjoying an outdoor festival or celebration".
+    **List of 600 Known Object Classes (OpenImagesV4 Vocabulary):**
+    {self.known_entities_prompt_segment}
 
-2.  **`spatial_rules` (list of objects):**
-    *   Identify ALL explicit spatial relationships.
-    *   For each, create an object with `entity`, `relation`, and `targets`.
-    *   **`relation` MUST be one of these exact keywords:** `is_between`, `is_behind`, `is_next_to`, `is_above`, `is_below`, `is_on`, `is_inside`.
-    *   **`entity` and `targets`**: Use descriptive, snake_cased English labels (e.g., "person_white_shirt", "black_car"). Remember to use labels from the KNOWN ENTITIES list when possible.
+    **Analysis Rules:**
+    1.  **If the user describes an object that is in the list**, use the label from the list.
+        *   Example: User says "biểu tượng con cua khổng lồ". The closest known entity is "Sculpture" or "Building". You MUST choose one of them. DO NOT create a new label like "giant_crab_symbol".
+    2.  **If the user describes an object that is NOT in the list**, find the most logical **parent class or component** from the list.
+        *   Example: User says "bản đồ Việt Nam làm bằng trái cây". The known list has "Fruit", "Apple", "Orange", but not "map". You should use "Fruit" as the best available approximation.
+    3.  **Your JSON output MUST contain three components:**
+        *   `search_context`: A general summary of the scene.
+        *   `spatial_rules`: A list of spatial relationships using ONLY the labels from the provided list.
+        *   `fine_grained_verification`: A list for detailed visual attributes not covered by the object labels.
 
-3.  **`fine_grained_verification` (list of objects):**
-    *   Identify objects with highly specific visual descriptions.
-    *   For each, create an object with `target_entity` (the general, common, single-word English class name, e.g., "Bird", "Car") and `detailed_description` (the full descriptive English sentence).
+    ---
+    **EXAMPLE:**
+    User Query: "Nhiều người mặc áo cờ đỏ sao vàng đứng trước biểu tượng một con cua khổng lồ."
 
----
-**COMPREHENSIVE EXAMPLE:**
-User Query: "Find a clip of three people (a woman in a white shirt sitting between two men in black shirts) playing instruments, with a bookshelf behind them."
-
-Your JSON output:
-{{
-  "search_context": "a group of people playing musical instruments in a cozy, indoor setting like a library or studio",
-  "spatial_rules": [
+    **Your CORRECT JSON output (because 'Sculpture' and 'Person' are in the list):**
     {{
-      "entity": "woman",
-      "relation": "is_between",
-      "targets": ["man", "man"]
-    }},
-    {{
-      "entity": "bookshelf",
-      "relation": "is_behind",
-      "targets": ["woman"]
+    "search_context": "a crowd of people celebrating in front of a large sculpture",
+    "spatial_rules": [
+        {{
+        "entity": "Sculpture",
+        "relation": "is_behind",
+        "targets": ["Person"]
+        }}
+    ],
+    "fine_grained_verification": [
+        {{
+        "target_entity": "Flag",
+        "detailed_description": "a Vietnamese flag (red flag with a yellow star)"
+        }},
+        {{
+        "target_entity": "Sculpture",
+        "detailed_description": "a giant sculpture shaped like a crab"
+        }}
+    ]
     }}
-  ],
-  "fine_grained_verification": []
-}}
----
-Now, analyze the user's query and provide ONLY the JSON output.
-"""
+    ---
+    Now, analyze the user's query and provide ONLY the JSON output, strictly following these rules.
+    """
 
     @api_retrier(max_retries=3, initial_delay=1)
     def _gemini_api_call(self, content_list: list) -> genai.GenerativeModel.generate_content:
