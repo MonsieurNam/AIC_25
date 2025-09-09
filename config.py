@@ -10,7 +10,7 @@ MAX_SUBMISSION_RESULTS = 100
 # --- Đường dẫn tới các file dữ liệu ---
 KAGGLE_INPUT_DIR = '/kaggle/input'
 KAGGLE_WORKING_DIR = '/kaggle/working'
-# UNIFIED_DATA_DIR = os.path.join(KAGGLE_WORKING_DIR, 'unified_data')
+UNIFIED_DATA_DIR = os.path.join(KAGGLE_WORKING_DIR, 'unified_data')
 
 CLIP_FEATURES_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/features_combined.npy')
 FAISS_INDEX_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/faiss_combined.index')
