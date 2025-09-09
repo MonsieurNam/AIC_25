@@ -10,12 +10,12 @@ MAX_SUBMISSION_RESULTS = 100
 # --- Đường dẫn tới các file dữ liệu ---
 KAGGLE_INPUT_DIR = '/kaggle/input'
 KAGGLE_WORKING_DIR = '/kaggle/working'
-UNIFIED_DATA_DIR = os.path.join(KAGGLE_WORKING_DIR, 'unified_data')
+# UNIFIED_DATA_DIR = os.path.join(KAGGLE_WORKING_DIR, 'unified_data')
 
 CLIP_FEATURES_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/features_combined.npy')
 FAISS_INDEX_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/faiss_combined.index')
 RERANK_METADATA_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/rerank_metadata_v6_combined.parquet')
-ALL_ENTITIES_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/all_detection_entities.json') 
+ALL_ENTITIES_PATH = os.path.join(KAGGLE_INPUT_DIR, 'stage1/all_entities_combined.json') 
 
 # VIDEO_BASE_PATH = os.path.join(KAGGLE_INPUT_DIR, 'aic2025-batch-1-video/')
 TRANSCRIPTS_JSON_DIR = os.path.join(KAGGLE_INPUT_DIR, 'aic25-transcripts/transcripts') 
