@@ -89,15 +89,14 @@ class QueryDecomposer:
         # --- Bước 2: Gọi API Gemini với cơ chế retry đã có ---
         try:
             user_prompt = f"Query: \"{query}\""
-            # Tận dụng lại hàm gọi API đã có sẵn retry từ GeminiTextHandler
-            response = self.gemini_handler._gemini_api_call([SYSTEM_PROMPT, user_prompt])
-            raw_text = response.text.strip()
             
-            # --- Bước 3: Xử lý response một cách an toàn ---
-            # Gemini đôi khi trả về trong khối markdown, cần trích xuất JSON từ đó
-            match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-            if not match:
-                print(f"   -> ⚠️ [Decomposer] Gemini không trả về mảng JSON hợp lệ. Fallback. Raw response: {raw_text}")
+            raw_text = self.gemini_handler.get_text_response(
+                prompt=user_prompt,
+                system_prompt=SYSTEM_PROMPT
+            )
+
+            if not raw_text:
+                print(f"   -> ⚠️ [Decomposer] Gemini không trả về nội dung. Fallback.")
                 return [query]
             
             try:

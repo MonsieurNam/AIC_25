@@ -111,7 +111,7 @@ class GeminiTextHandler:
 
     @api_retrier(max_retries=3, initial_delay=1)
     def _gemini_api_call(self, content_list: list) -> genai.GenerativeModel.generate_content:
-        """Hàm con được "trang trí", chuyên thực hiện lệnh gọi API của Gemini."""
+        """Hàm con được 'trang trí', chuyên thực hiện lệnh gọi API của Gemini."""
         return self.model.generate_content(
             content_list,
             generation_config=self.generation_config,
@@ -226,3 +226,16 @@ class GeminiTextHandler:
             return [query]
         except Exception:
             return [query]
+    def get_text_response(self, prompt: str, system_prompt: str) -> str:
+        """
+        Gửi một prompt tới Gemini và trả về kết quả dạng text.
+        Đây là giao diện chung, sạch sẽ cho các module khác sử dụng.
+        """
+        try:
+            # Gửi cả system prompt và user prompt
+            response = self._gemini_api_call([system_prompt, prompt])
+            return response.text.strip()
+        except Exception as e:
+            print(f"--- ❌ Lỗi nghiêm trọng khi gọi API Gemini qua get_text_response: {e} ---")
+            # Trả về chuỗi rỗng để bên gọi có thể xử lý fallback một cách an toàn
+            return ""
