@@ -126,7 +126,7 @@ class MasterSearcher:
             # Fallback: Trả về mapping rỗng nếu có lỗi
             return {}
     
-    def _deduplicate_temporally(self, results: List[Dict[str, Any]], time_threshold: int = 5) -> List[Dict[str, Any]]:
+    def _deduplicate_temporally(self, results: List[Dict[str, Any]], time_threshold: int = 2) -> List[Dict[str, Any]]:
         """
         Lọc các kết quả bị trùng lặp về mặt thời gian trong cùng một video.
 

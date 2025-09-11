@@ -99,20 +99,30 @@ class QueryDecomposer:
                 print(f"   -> ⚠️ [Decomposer] Gemini không trả về nội dung. Fallback.")
                 return [query]
             
-            try:
-                sub_queries = json.loads(match.group(0))
-                if isinstance(sub_queries, list) and all(isinstance(i, str) for i in sub_queries):
-                    print(f"   -> ✅ [Decomposer] Phân rã thành công: {sub_queries}")
-                    return sub_queries
-                else:
-                    print(f"   -> ⚠️ [Decomposer] JSON trả về không phải là một danh sách chuỗi. Fallback.")
+            match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+            if match:
+                try:
+                    # Thử giải mã JSON ngay trong khối if này
+                    sub_queries = json.loads(match.group(0))
+                    if isinstance(sub_queries, list) and all(isinstance(i, str) for i in sub_queries):
+                        print(f"   -> ✅ [Decomposer] Phân rã thành công: {sub_queries}")
+                        return sub_queries
+                    else:
+                        print(f"   -> ⚠️ [Decomposer] JSON trả về không phải là một danh sách chuỗi. Fallback.")
+                        return [query]
+                except json.JSONDecodeError:
+                    # Lỗi chỉ xảy ra khi match tồn tại nhưng nội dung không phải JSON hợp lệ
+                    print(f"   -> ⚠️ [Decomposer] Lỗi giải mã JSON. Fallback. Raw match: {match.group(0)}")
                     return [query]
-            except json.JSONDecodeError:
-                print(f"   -> ⚠️ [Decomposer] Lỗi giải mã JSON. Fallback. Raw match: {match.group(0)}")
+            else:
+                # Nếu không tìm thấy match, log và fallback
+                print(f"   -> ⚠️ [Decomposer] Gemini không trả về mảng JSON hợp lệ. Fallback. Raw response: {raw_text}")
                 return [query]
+            # =================================================================
 
         except Exception as e:
+            # Bắt các lỗi khác như lỗi mạng, API key...
+            import traceback
             print(f"--- ❌ [Decomposer] Lỗi nghiêm trọng khi gọi API Gemini: {e}. Sử dụng fallback. ---")
-            # Fallback tối quan trọng: nếu có bất kỳ lỗi gì, hệ thống vẫn chạy được
-            # bằng cách sử dụng chính truy vấn gốc.
+            traceback.print_exc() # In ra stack trace để gỡ lỗi sâu hơn
             return [query]
