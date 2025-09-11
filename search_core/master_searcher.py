@@ -1,5 +1,6 @@
 # search_core/master_searcher.py
 
+from collections import defaultdict
 from typing import Dict, Any, Optional, List
 import os
 import json
@@ -15,7 +16,7 @@ from search_core.gemini_text_handler import GeminiTextHandler
 from search_core.openai_handler import OpenAIHandler
 from search_core.task_analyzer import TaskType
 from search_core.mmr_builder import MMRResultBuilder 
-
+from search_core.query_decomposer import QueryDecomposer
 
 class MasterSearcher:
     """
@@ -52,6 +53,7 @@ class MasterSearcher:
         self.gemini_handler: Optional[GeminiTextHandler] = None
         self.openai_handler: Optional[OpenAIHandler] = None
         self.trake_solver: Optional[TRAKESolver] = None
+        self.query_decomposer: Optional[QueryDecomposer] = None
         self.ai_enabled = False
         self.known_entities: set = set()
         print(f"--- ✅ Master Searcher đã sẵn sàng! (AI Enabled: {self.ai_enabled}) ---")
@@ -72,6 +74,7 @@ class MasterSearcher:
                 self.gemini_handler = GeminiTextHandler(api_key=gemini_api_key)
                 if self.known_entities and self.gemini_handler:
                     self.gemini_handler.load_known_entities(self.known_entities)
+                self.query_decomposer = QueryDecomposer(self.gemini_handler)
                 self.ai_enabled = True
             except Exception as e:
                 print(f"--- ⚠️ Lỗi khi khởi tạo Gemini Handler: {e}. Các tính năng text AI sẽ bị hạn chế. ---")
@@ -160,170 +163,103 @@ class MasterSearcher:
         print(f"--- ✅ Lọc hoàn tất. Từ {len(results)} -> còn {len(deduplicated_results)} kết quả. ---")
         return deduplicated_results
 
+# /search_core/master_searcher.py - PHIÊN BẢN CUỐI CÙNG (COPY VÀ THAY THẾ)
+
     def search(self, query: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Hàm tìm kiếm chính, nhận một dictionary config để tùy chỉnh hành vi.
+        Thực thi tìm kiếm theo chiến lược "PHOENIX REBORN" đã được tinh gọn.
+        Luồng xử lý duy nhất, không phân nhánh.
         """
-        # --- Bước 1: Giải nén Config ---
-        top_k_final = int(config.get('top_k_final', 100))
-        kis_retrieval = int(config.get('kis_retrieval', 200))
-        vqa_candidates_to_rank = int(config.get('vqa_candidates', 20))
-        vqa_retrieval = int(config.get('vqa_retrieval', 200))
-        trake_candidates_per_step = int(config.get('trake_candidates_per_step', 20))
-        trake_max_sequences = int(config.get('trake_max_sequences', 50))
-        w_clip = config.get('w_clip', 0.4)
-        w_obj = config.get('w_obj', 0.3)
-        w_semantic = config.get('w_semantic', 0.3)
-        lambda_mmr = config.get('lambda_mmr', 0.7)
+        print("\n" + "="*20 + " 🚀 Kích hoạt Chiến dịch PHOENIX REBORN " + "="*20)
 
-        # --- Bước 2: Phân tích Truy vấn ---
-        query_analysis = {}
-        task_type = TaskType.KIS
-        if self.ai_enabled and self.gemini_handler:
-            print("--- ✨ Bắt đầu phân tích truy vấn bằng Gemini Text Handler... ---")
-            query_analysis = self.gemini_handler.analyze_query_fully(query)
-            
-            entities_to_ground = query_analysis.get('entities_to_ground', [])
-            if entities_to_ground:
-                # Gọi hàm grounding để lấy bản đồ dịch
-                grounding_map = self.gemini_handler.perform_semantic_grounding(entities_to_ground)
-                # Lưu bản đồ này vào query_analysis để các tầng sau sử dụng
-                query_analysis['grounding_map'] = grounding_map
-            else:
-                query_analysis['grounding_map'] = {}
-            
-            original_objects = query_analysis.get('objects_en', [])
-            if original_objects:
-                grounded_objects = self.gemini_handler.perform_semantic_grounding(original_objects)
-                if original_objects != grounded_objects:
-                     print(f"--- 🧠 Semantic Grounding: {original_objects} -> {grounded_objects} ---")
-                query_analysis['objects_en'] = grounded_objects
-                
-            task_type_str = query_analysis.get('task_type', 'KIS').upper()
-            try:
-                task_type = TaskType[task_type_str]
-            except KeyError:
-                task_type = TaskType.KIS
-        
-        print(f"--- Đã phân loại truy vấn là: {task_type.value} ---")
-
-        final_results = []
-        query_analysis.update({'w_clip': w_clip, 'w_obj': w_obj, 'w_semantic': w_semantic})
-        search_context = query_analysis.get('search_context', query)
-
-        # --- Bước 3: Khối Điều phối Logic ---
-
-        if task_type == TaskType.TRAKE:
-            if self.trake_solver:
-                sub_queries = self.trake_solver.decompose_query(query)
-                final_results = self.trake_solver.find_sequences(
-                    sub_queries, 
-                    self.semantic_searcher,
-                    original_query_analysis=query_analysis,
-                    top_k_per_step=trake_candidates_per_step,
-                    max_sequences=trake_max_sequences
-                )
-            else:
-                task_type = TaskType.KIS
-
-        elif task_type == TaskType.QNA:
-            if self.openai_handler:
-                candidates = self.semantic_searcher.search(
-                    query_text=search_context,
-                    precomputed_analysis=query_analysis,
-                    top_k_final=vqa_retrieval,
-                    top_k_retrieval=vqa_retrieval
-                )
-                
-                if not candidates:
-                    final_results = []
-                else:
-                    candidates_for_vqa = candidates[:vqa_candidates_to_rank]
-                    specific_question = query_analysis.get('specific_question', query)
-                    vqa_enhanced_candidates = []
-                    
-                    print(f"--- 💬 Bắt đầu Quét VQA song song trên {len(candidates_for_vqa)} ứng viên... ---")
-                    
-                    with ThreadPoolExecutor(max_workers=8) as executor:
-                        future_to_candidate = {
-                            executor.submit(
-                                self.openai_handler.perform_vqa, 
-                                image_path=cand['keyframe_path'], 
-                                question=specific_question, 
-                                context_text=cand.get('transcript_text', '')
-                            ): cand 
-                            for cand in candidates_for_vqa
-                        }
-                        
-                        for future in tqdm(as_completed(future_to_candidate), total=len(candidates_for_vqa), desc="   -> VQA Progress"):
-                            cand = future_to_candidate[future]
-                            try:
-                                vqa_result = future.result()
-                                new_cand = cand.copy()
-                                new_cand['answer'] = vqa_result['answer']
-                                search_score = new_cand.get('final_score', 0)
-                                vqa_confidence = vqa_result.get('confidence', 0)
-                                new_cand['final_score'] = search_score * vqa_confidence
-                                new_cand['scores']['vqa_confidence'] = vqa_confidence
-                                vqa_enhanced_candidates.append(new_cand)
-                            except Exception as exc:
-                                print(f"--- ❌ Lỗi khi xử lý VQA cho keyframe {cand.get('keyframe_id')}: {exc} ---")
-                    
-                    if vqa_enhanced_candidates:
-                        final_results = sorted(vqa_enhanced_candidates, key=lambda x: x['final_score'], reverse=True)
-                    else:
-                        final_results = []
-            else:
-                print("--- ⚠️ OpenAI (VQA) handler chưa được kích hoạt. Fallback về KIS. ---")
-                task_type = TaskType.KIS
-
-        if not final_results or task_type == TaskType.KIS:
-            final_results = self.semantic_searcher.search(
-                query_text=search_context,
-                precomputed_analysis=query_analysis,
-                top_k_final=kis_retrieval, 
-                top_k_retrieval=kis_retrieval
-            )
-        if task_type in [TaskType.KIS, TaskType.QNA]:
-            final_results = self._deduplicate_temporally(final_results, time_threshold=2)
-        if self.video_path_map and task_type in [TaskType.KIS, TaskType.QNA]:
-            for result in final_results:
-                result['video_path'] = self.video_path_map.get(result.get('video_id'))
-        # --- BƯỚC 4: ÁP DỤNG MMR ĐỂ TĂNG CƯỜNG ĐA DẠNG ---
-        diverse_results = final_results
-        # if self.mmr_builder and final_results:
-        #     if task_type in [TaskType.KIS, TaskType.QNA]:
-        #         diverse_results = self.mmr_builder.build_diverse_list(
-        #             candidates=final_results, 
-        #             target_size=len(final_results), # MMR sẽ sắp xếp lại toàn bộ list
-        #             lambda_val=lambda_mmr
-        #         )
-
-        # Tạm thời chỉ cắt bớt
-        final_results_for_submission = diverse_results[:top_k_final]
-
-        # *** LOG DEBUG ĐIỂM A ***
-        print("\n" + "="*20 + " DEBUG LOG: MASTER SEARCHER OUTPUT " + "="*20)
-        print(f"-> Task Type cuối cùng: {task_type.value}")
-        print(f"-> Số lượng kết quả cuối cùng: {len(final_results)}")
-        if final_results:
-            print("-> Ví dụ kết quả đầu tiên:")
-            first_result = final_results[0]
-            if task_type == TaskType.TRAKE:
-                print(f"  - video_id: {first_result.get('video_id')}")
-                print(f"  - final_score: {first_result.get('final_score')}")
-                print(f"  - Số bước trong chuỗi: {len(first_result.get('sequence', []))}")
-            else: # KIS, QNA
-                print(f"  - keyframe_id: {first_result.get('keyframe_id')}")
-                print(f"  - final_score: {first_result.get('final_score')}")
-                if 'answer' in first_result:
-                    print(f"  - answer: {first_result.get('answer')}")
+        # === BƯỚC 1: PHÂN RÃ TRUY VẤN ===
+        if not self.query_decomposer or not self.ai_enabled:
+             print("--- ⚠️ Decomposer chưa sẵn sàng. Chạy ở chế độ KIS đơn giản. ---")
+             sub_queries = [query]
         else:
-            print("-> Không có kết quả nào được tạo ra.")
-        print("="*68 + "\n")
+             sub_queries = self.query_decomposer.decompose(query)
+        
+        print(f"   -> Truy vấn được phân rã thành {len(sub_queries)} truy vấn con: {sub_queries}")
+
+        if not sub_queries:
+            return {"task_type": TaskType.KIS, "results": [], "query_analysis": {}}
+
+        # === BƯỚC 2: NÉM LƯỚI SONG SONG ===
+        kis_retrieval_count = int(config.get('initial_retrieval_slider', 500))
+        weights = {
+            'w_clip': config.get('w_clip_slider', 0.4),
+            'w_obj': config.get('w_obj_slider', 0.3),
+            'w_semantic': config.get('w_semantic_slider', 0.3),
+            'w_spatial': config.get('w_spatial_slider', 0.25),
+            'w_fine_grained': config.get('w_fine_grained_slider', 0.25)
+        }
+        all_results_raw = []
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_query = {
+                executor.submit(
+                    self.semantic_searcher.search, query_text=sq,
+                    top_k_final=kis_retrieval_count, top_k_retrieval=kis_retrieval_count,
+                    precomputed_analysis={}, weights=weights
+                ): sq for sq in sub_queries
+            }
+            for future in tqdm(as_completed(future_to_query), total=len(sub_queries), desc="   -> Đang Ném Lưới"):
+                sub_query = future_to_query[future]
+                try:
+                    results = future.result()
+                    for res in results: res['matched_query'] = sub_query
+                    all_results_raw.extend(results)
+                except Exception as exc:
+                    print(f"   -> ❌ Lỗi khi tìm kiếm cho sub-query '{sub_query}': {exc}")
+
+        print(f"   -> Thu về tổng cộng {len(all_results_raw)} ứng viên thô.")
+        if not all_results_raw:
+             return {"task_type": TaskType.KIS, "results": [], "query_analysis": {"sub_queries": sub_queries}}
+
+        # === BƯỚC 3: HỢP NHẤT VÀ TÍNH ĐIỂM ĐỒNG XUẤT HIỆN ===
+        print("   -> Đang hợp nhất kết quả và tính điểm theo bằng chứng...")
+        merged_candidates = defaultdict(lambda: {'sum_score': 0.0, 'matched_queries': set(), 'data': None})
+        for res in all_results_raw:
+            key = res['keyframe_id']
+            merged_candidates[key]['sum_score'] += res.get('final_score', 0)
+            merged_candidates[key]['matched_queries'].add(res['matched_query'])
+            if merged_candidates[key]['data'] is None: merged_candidates[key]['data'] = res
+        
+        final_results = []
+        for key, value in merged_candidates.items():
+            final_data = value['data']
+            num_matches = len(value['matched_queries'])
+            sum_score = value['sum_score']
+            final_score = (num_matches ** 1.5) * sum_score # Công thức điểm thưởng cho sự đồng xuất hiện
+            final_data['final_score'] = final_score
+            final_data['matched_queries'] = list(value['matched_queries'])
+            final_results.append(final_data)
+        
+        final_results.sort(key=lambda x: x['final_score'], reverse=True)
+        print(f"   -> Hợp nhất còn {len(final_results)} kết quả độc nhất.")
+
+        # === BƯỚC 4: HOÀN THIỆN VÀ TRẢ VỀ ===
+        top_n_before_dedup = final_results[:kis_retrieval_count]
+        deduplicated_results = self._deduplicate_temporally(top_n_before_dedup)
+        
+        lambda_mmr = config.get('lambda_mmr_slider', 0.7)
+        diverse_results = deduplicated_results
+        if self.mmr_builder and diverse_results:
+             print(f"   -> Áp dụng MMR (λ={lambda_mmr}) để đa dạng hóa kết quả...")
+             diverse_results = self.mmr_builder.build_diverse_list(
+                 candidates=diverse_results, target_size=len(diverse_results), lambda_val=lambda_mmr
+             )
+        
+        top_k_final = int(config.get('num_results', 100))
+        final_results_for_submission = diverse_results[:top_k_final]
+        
+        if self.video_path_map:
+            for result in final_results_for_submission:
+                result['video_path'] = self.video_path_map.get(result.get('video_id'))
+
+        print(f"--- ✅ Chiến dịch PHOENIX REBORN hoàn tất. Trả về {len(final_results_for_submission)} kết quả. ---")
         
         return {
-            "task_type": task_type,
+            "task_type": TaskType.KIS, # Luôn là KIS
             "results": final_results_for_submission,
-            "query_analysis": query_analysis
+            "query_analysis": {"sub_queries": sub_queries}
         }

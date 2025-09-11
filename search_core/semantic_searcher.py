@@ -50,8 +50,8 @@ class SemanticSearcher:
                               precomputed_analysis: Dict[str, Any]
                              ) -> List[Dict]:
         """
-        Áp dụng các quy tắc không gian để tính điểm 'spatial_score' cho mỗi ứng viên.
-        PHIÊN BẢN HOÀN CHỈNH - Hỗ trợ đầy đủ các quan hệ từ spatial_engine.
+        Áp dụng các quy tắc không gian để tính điểm 'spatial_score'.
+        PHIÊN BẢN NÂNG CẤP DỰA TRÊN CODE GỐC: Sử dụng cơ chế "Chấm điểm Mềm" (Soft Scoring).
         """
         grounding_map = precomputed_analysis.get('grounding_map', {})
         if not spatial_rules or self.master_object_df is None or self.master_object_df.empty:
@@ -59,7 +59,7 @@ class SemanticSearcher:
                 cand['scores']['spatial_score'] = 1.0
             return candidates
 
-        print(f"--- 📐 Áp dụng {len(spatial_rules)} Quy tắc Không gian (có Grounding) trên {len(candidates)} ứng viên... ---")
+        print(f"--- 📐 Áp dụng {len(spatial_rules)} Quy tắc Không gian (Chế độ Chấm điểm Mềm)... ---")
         
         candidate_ids = [c['keyframe_id'] for c in candidates]
         try:
@@ -78,79 +78,90 @@ class SemanticSearcher:
                 cand['scores']['spatial_score'] = 0.0
                 continue
             
-            # Chuẩn hóa nhãn object về chữ thường một lần
             keyframe_objects_lower = keyframe_objects.copy()
             keyframe_objects_lower['object_label'] = keyframe_objects_lower['object_label'].str.lower()
             
             total_rules = len(spatial_rules)
-            satisfied_rules_count = 0
+            # ✅ THAY ĐỔI 1: Chuyển sang float để có thể cộng điểm lẻ
+            total_satisfied_score = 0.0
             
             is_debug_candidate = cand['keyframe_id'] in [c['keyframe_id'] for c in candidates[:5]]
             if is_debug_candidate:
                 print(f"\n--- DEBUG: Phân tích không gian cho Keyframe: {cand['keyframe_id']} ---")
 
             for rule in spatial_rules:
-                entity_original = rule['entity'].replace('_', ' ')
-                relation = rule['relation']
-                targets_original = [t.replace('_', ' ') for t in rule['targets']]
+                entity_original = rule.get('entity', '').replace('_', ' ')
+                relation = rule.get('relation')
+                targets_original = [t.replace('_', ' ') for t in rule.get('targets', [])]
                 
                 entity_grounded = grounding_map.get(entity_original, entity_original).lower()
                 targets_grounded = [grounding_map.get(t, t).lower() for t in targets_original]
                 
                 if is_debug_candidate:
-                    print(f"  - Rule: {rule['entity']} {rule['relation']} {rule['targets']}")
+                    print(f"  - Rule: {rule.get('entity')} {relation} {rule.get('targets')}")
                     print(f"    -> Grounded: '{entity_grounded}' vs {targets_grounded}")
 
+                # --- ✅ BẮT ĐẦU LOGIC NÂNG CẤP ---
+                
+                # 1. Tìm bounding box cho TẤT CẢ các đối tượng trong quy tắc
                 entity_boxes = keyframe_objects_lower[keyframe_objects_lower['object_label'] == entity_grounded]['bounding_box'].tolist()
-                target_boxes_lists = []
-                for label in targets_grounded:
-                    boxes = keyframe_objects_lower[keyframe_objects_lower['object_label'] == label]['bounding_box'].tolist()
-                    target_boxes_lists.append(boxes)
+                target_boxes_lists = [keyframe_objects_lower[keyframe_objects_lower['object_label'] == label]['bounding_box'].tolist() for label in targets_grounded]
 
                 if is_debug_candidate:
                     print(f"    -> Tìm thấy: '{entity_grounded}' ({len(entity_boxes)} box), Targets ({[len(boxes) for boxes in target_boxes_lists]} boxes)")
                 
-                if not entity_boxes or any(not boxes for boxes in target_boxes_lists):
-                    continue
-                    
+                # 2. Kiểm tra xem có đủ đối tượng để xác minh quan hệ không gian hay không
+                can_verify_relation = (len(entity_boxes) > 0) and all(len(boxes) > 0 for boxes in target_boxes_lists)
+                
                 rule_satisfied = False
-                for entity_box in entity_boxes:
-                    if rule_satisfied: break
-                    
-                    # --- ✅ KHỐI LOGIC ĐIỀU PHỐI QUAN HỆ ĐÃ ĐƯỢC MỞ RỘNG ---
-                    # Quan hệ 2 target
-                    if relation == 'is_between' and len(target_boxes_lists) == 2:
-                        target_pairs = [(b1, b2) for b1 in target_boxes_lists[0] for b2 in target_boxes_lists[1]]
-                        for target1_box, target2_box in target_pairs:
-                            if np.array_equal(target1_box, target2_box): continue
-                            if is_between(entity_box, target1_box, target2_box):
-                                rule_satisfied = True; break
-                    
-                    # Quan hệ 1 target
-                    elif len(target_boxes_lists) == 1:
-                        for target_box in target_boxes_lists[0]:
-                            # Dùng một dictionary để tra cứu hàm cho gọn
+                if can_verify_relation:
+                    # Nếu có đủ đối tượng, tiến hành kiểm tra quan hệ không gian như code gốc
+                    for entity_box in entity_boxes:
+                        if rule_satisfied: break
+                        
+                        # Khối logic điều phối quan hệ (giữ nguyên)
+                        if relation == 'is_between' and len(target_boxes_lists) == 2:
+                            target_pairs = [(b1, b2) for b1 in target_boxes_lists[0] for b2 in target_boxes_lists[1]]
+                            for target1_box, target2_box in target_pairs:
+                                if np.array_equal(target1_box, target2_box): continue
+                                if is_between(entity_box, target1_box, target2_box):
+                                    rule_satisfied = True; break
+                        
+                        elif len(target_boxes_lists) == 1:
                             relation_function = {
-                                'is_behind': is_behind,
-                                'is_on': is_on,
-                                'is_above': is_above,
-                                'is_below': is_below,
-                                'is_next_to': is_next_to,
-                                'is_inside': is_inside
-                            }.get(relation) # .get() trả về None nếu relation không hợp lệ
+                                'is_behind': is_behind, 'is_on': is_on, 'is_above': is_above,
+                                'is_below': is_below, 'is_next_to': is_next_to, 'is_inside': is_inside
+                            }.get(relation)
                             
-                            if relation_function and relation_function(entity_box, target_box):
-                                rule_satisfied = True
-                                break
-                            
+                            if relation_function:
+                                for target_box in target_boxes_lists[0]:
+                                    if relation_function(entity_box, target_box):
+                                        rule_satisfied = True; break
+                
+                # 3. Tính điểm cuối cùng cho quy tắc này theo cơ chế "Mềm"
                 if rule_satisfied:
-                    satisfied_rules_count += 1
+                    # Thưởng điểm tối đa nếu cả quan hệ không gian đều đúng
+                    total_satisfied_score += 1.0
                     if is_debug_candidate:
-                        print(f"    -> ✅ QUY TẮC ĐƯỢC THỎA MÃN!")
+                        print(f"    -> ✅ QUY TẮC ĐƯỢC THỎA MÃN HOÀN TOÀN! (1.0 điểm)")
+                else:
+                    # Nếu quan hệ không gian không đúng HOẶC không thể xác minh (do thiếu đối tượng),
+                    # chúng ta vẫn thưởng điểm nếu một phần đối tượng tồn tại.
+                    all_entities_in_rule = [entity_grounded] + targets_grounded
+                    found_entities_count = (1 if entity_boxes else 0) + sum(1 for boxes in target_boxes_lists if boxes)
+                    existence_score = found_entities_count / len(all_entities_in_rule) if all_entities_in_rule else 0
+                    
+                    # Thưởng 50% của điểm tồn tại.
+                    # Ví dụ: nếu tìm thấy 2/3 đối tượng, điểm thưởng là 0.5 * (2/3) = 0.33
+                    partial_score = 0.5 * existence_score
+                    total_satisfied_score += partial_score
+                    if is_debug_candidate and partial_score > 0:
+                        print(f"    -> ⚠️  QUY TẮC KHỚP MỘT PHẦN (do đối tượng tồn tại). ({partial_score:.2f} điểm)")
             
-            cand['scores']['spatial_score'] = satisfied_rules_count / total_rules if total_rules > 0 else 1.0
+            # ✅ THAY ĐỔI 2: Tính điểm trung bình cuối cùng từ tổng điểm đã tích lũy
+            cand['scores']['spatial_score'] = total_satisfied_score / total_rules if total_rules > 0 else 1.0
         
-        print("    -> Ví dụ điểm không gian (có Grounding):", {c['keyframe_id']: f"{c['scores']['spatial_score']:.2f}" for c in candidates[:5]})
+        print("    -> Ví dụ điểm không gian (Chấm điểm Mềm):", {c['keyframe_id']: f"{c['scores'].get('spatial_score', 0):.2f}" for c in candidates[:5]})
         return candidates
     
     def _apply_fine_grained_filter(self, candidates: List[Dict], verification_rules: List[Dict]) -> List[Dict]:
