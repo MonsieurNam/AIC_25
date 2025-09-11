@@ -215,30 +215,60 @@ class MasterSearcher:
         if not all_results_raw:
              return {"task_type": TaskType.KIS, "results": [], "query_analysis": {"sub_queries": sub_queries}}
 
-        # === BƯỚC 3: HỢP NHẤT VÀ TÍNH ĐIỂM ĐỒNG XUẤT HIỆN ===
-        print("   -> Đang hợp nhất kết quả và tính điểm theo bằng chứng...")
-        merged_candidates = defaultdict(lambda: {'sum_score': 0.0, 'matched_queries': set(), 'data': None})
+        # ==============================================================================
+        # === BƯỚC 3 MỚI: HIỆU CHỈNH & TÍNH ĐIỂM THEO ĐỘ HIẾM ===
+        # ==============================================================================
+        print("   -> Đang hiệu chỉnh trọng số và tính điểm theo độ hiếm...")
+
+        # --- BƯỚC 3A: Hiệu chỉnh - Tìm "Độ hiếm" của mỗi Truy vấn con ---
+        uniqueness_weights = defaultdict(float)
+        for res in all_results_raw:
+            query = res['matched_query']
+            score = res.get('final_score', 0.0)
+            if score > uniqueness_weights[query]:
+                uniqueness_weights[query] = score
+        
+        # Chuẩn hóa trọng số để giá trị lớn nhất là 1, tránh điểm quá lớn
+        max_weight = max(uniqueness_weights.values()) if uniqueness_weights else 1.0
+        if max_weight > 0:
+            for query in uniqueness_weights:
+                uniqueness_weights[query] /= max_weight
+        
+        print(f"   -> Trọng số Độ hiếm đã hiệu chỉnh: {dict(uniqueness_weights)}")
+
+        # --- BƯỚC 3B: Hợp nhất và Tính điểm có Trọng số ---
+        merged_candidates = defaultdict(lambda: {
+            'weighted_score': 0.0,
+            'matched_queries': set(),
+            'data': None
+        })
+
         for res in all_results_raw:
             key = res['keyframe_id']
-            merged_candidates[key]['sum_score'] += res.get('final_score', 0)
-            merged_candidates[key]['matched_queries'].add(res['matched_query'])
-            if merged_candidates[key]['data'] is None: merged_candidates[key]['data'] = res
+            matched_query = res['matched_query']
+            
+            # Điểm của kết quả này được nhân với độ hiếm của truy vấn đã tìm ra nó
+            score_contribution = res.get('final_score', 0) * uniqueness_weights.get(matched_query, 0.5)
+            
+            merged_candidates[key]['weighted_score'] += score_contribution
+            merged_candidates[key]['matched_queries'].add(matched_query)
+            if merged_candidates[key]['data'] is None:
+                merged_candidates[key]['data'] = res
         
         final_results = []
         for key, value in merged_candidates.items():
             final_data = value['data']
-            num_matches = len(value['matched_queries'])
-            sum_score = value['sum_score']
-            final_score = (num_matches ** 1.5) * sum_score # Công thức điểm thưởng cho sự đồng xuất hiện
-            final_data['final_score'] = final_score
+            # Điểm cuối cùng giờ là tổng các điểm đã được trọng số hóa
+            final_data['final_score'] = value['weighted_score']
             final_data['matched_queries'] = list(value['matched_queries'])
             final_results.append(final_data)
-        
+
+        # Sắp xếp lại theo điểm MỚI
         final_results.sort(key=lambda x: x['final_score'], reverse=True)
         print(f"   -> Hợp nhất còn {len(final_results)} kết quả độc nhất.")
 
-        # === BƯỚC 4: HOÀN THIỆN VÀ TRẢ VỀ ===
-        top_n_before_dedup = final_results[:kis_retrieval_count]
+        # === BƯỚC 4: HOÀN THIỆN VÀ TRẢ VỀ (Giữ nguyên) ===
+        top_n_before_dedup = final_results[:kis_retrieval_count] # kis_retrieval_count từ Bước 2
         deduplicated_results = self._deduplicate_temporally(top_n_before_dedup)
         
         lambda_mmr = config.get('lambda_mmr_slider', 0.7)
@@ -256,10 +286,10 @@ class MasterSearcher:
             for result in final_results_for_submission:
                 result['video_path'] = self.video_path_map.get(result.get('video_id'))
 
-        print(f"--- ✅ Chiến dịch PHOENIX REBORN hoàn tất. Trả về {len(final_results_for_submission)} kết quả. ---")
+        print(f"--- ✅ Chiến dịch PHOENIX REBORN (Logic v2) hoàn tất. Trả về {len(final_results_for_submission)} kết quả. ---")
         
         return {
-            "task_type": TaskType.KIS, # Luôn là KIS
+            "task_type": TaskType.KIS,
             "results": final_results_for_submission,
-            "query_analysis": {"sub_queries": sub_queries}
+            "query_analysis": {"sub_queries": sub_queries, "uniqueness_weights": dict(uniqueness_weights)}
         }
