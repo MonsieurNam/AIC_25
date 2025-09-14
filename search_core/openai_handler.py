@@ -1,6 +1,3 @@
-# ==============================================================================
-# OPENAI HANDLER - PHIÊN BẢN NÂNG CẤP V2 (DỰA TRÊN BẢN GỐC + CONTEXT-AWARE VQA)
-# ==============================================================================
 import openai
 import json
 import re
@@ -18,7 +15,6 @@ class OpenAIHandler:
     rõ ràng cho các tác vụ cụ thể (phân tích, VQA, etc.).
     """
     def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
-        # --- KHÔNG THAY ĐỔI ---
         print(f"--- 🤖 Khởi tạo OpenAI Handler với model mặc định: {model} ---")
         self.client = openai.OpenAI(api_key=api_key)
         self.model = model
@@ -26,7 +22,6 @@ class OpenAIHandler:
         
     @api_retrier(max_retries=2, initial_delay=1)
     def check_api_health(self) -> bool:
-        # --- KHÔNG THAY ĐỔI ---
         print("--- 🩺 Đang thực hiện kiểm tra trạng thái API OpenAI... ---")
         try:
             self.client.embeddings.create(input="kiểm tra", model="text-embedding-3-small")
@@ -41,7 +36,6 @@ class OpenAIHandler:
 
     @api_retrier(max_retries=3, initial_delay=2)
     def _openai_vision_call(self, messages: List[Dict], is_json: bool = True, is_vision: bool = False) -> str:
-        # --- KHÔNG THAY ĐỔI ---
         model_to_use = self.vision_model if is_vision else self.model
         response_format = {"type": "json_object"} if is_json else {"type": "text"}
         
@@ -59,7 +53,7 @@ class OpenAIHandler:
     def _preprocess_and_encode_image(
         self, 
         image_path: str,
-        quality: int = 95 # Vẫn có thể nén nhẹ để giảm payload mà không ảnh hưởng chi tiết
+        quality: int = 95 
     ) -> str:
         """
         Chuẩn hóa định dạng ảnh (sang RGB) và mã hóa sang Base64.
@@ -68,19 +62,14 @@ class OpenAIHandler:
         try:
             with Image.open(image_path) as img:
                 
-                # BƯỚC QUAN TRỌNG NHẤT: Đảm bảo ảnh ở định dạng RGB.
-                # Thao tác này sẽ loại bỏ kênh Alpha (RGBA) hoặc chuyển đổi từ CMYK.
                 if img.mode != 'RGB':
                     print(f"   -> Chuẩn hóa ảnh '{os.path.basename(image_path)}' từ mode '{img.mode}' sang 'RGB'.")
                     img = img.convert('RGB')
 
-                # Lưu ảnh vào bộ nhớ đệm (in-memory buffer) để lấy chuỗi bytes.
-                # Việc này cũng giúp chuẩn hóa lại định dạng nén JPEG.
                 buffer = io.BytesIO()
                 img.save(buffer, format="JPEG", quality=quality)
                 img_bytes = buffer.getvalue()
                 
-                # Cuối cùng, mã hóa Base64
                 return base64.b64encode(img_bytes).decode('utf-8')
 
         except FileNotFoundError:
@@ -90,7 +79,6 @@ class OpenAIHandler:
             print(f"--- ⚠️ Lỗi khi xử lý ảnh {image_path}: {e} ---")
             return ""
 
-    # === HÀM ĐÃ ĐƯỢC NÂNG CẤP ===
     def perform_vqa(self, image_path: str, question: str, context_text: Optional[str] = None) -> Dict[str, any]:
         """
         Thực hiện VQA sử dụng GPT-4o, có thể nhận thêm bối cảnh từ transcript.
@@ -100,7 +88,6 @@ class OpenAIHandler:
         if not base64_image:
             return {"answer": "Lỗi: Không thể xử lý ảnh", "confidence": 0.0}
 
-        # *** BẮT ĐẦU NÂNG CẤP TẠI ĐÂY ***
         
         context_prompt_part = ""
         has_context = False
@@ -114,7 +101,6 @@ class OpenAIHandler:
         ---
         """
         
-        # Thêm log mới
         if has_context:
             print(f"   -> 🧠 Thực hiện VQA với Context: '{question}'")
         
@@ -152,7 +138,6 @@ class OpenAIHandler:
             return {"answer": "Lỗi xử lý VQA", "confidence": 0.0}
 
     def decompose_trake_query(self, query: str) -> List[str]:
-        # --- KHÔNG THAY ĐỔI ---
         prompt = f"""
         Decompose the Vietnamese query...
         ...

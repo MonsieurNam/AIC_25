@@ -1,13 +1,10 @@
 # search_core/master_searcher.py
-
 from typing import Dict, Any, Optional, List
 import os
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 from tqdm import tqdm
-
-# Import các module cốt lõi của hệ thống
 from search_core.basic_searcher import BasicSearcher
 from search_core.semantic_searcher import SemanticSearcher
 from search_core.trake_solver import TRAKESolver
@@ -65,8 +62,6 @@ class MasterSearcher:
                 print(f"--- ✅ Tải thành công {len(self.known_entities)} thực thể đã biết. ---")
             except Exception as e:
                 print(f"--- ⚠️ Lỗi khi tải Từ điển Đối tượng: {e}. Semantic Grounding sẽ bị vô hiệu hóa. ---")
-                
-        # --- Khởi tạo và xác thực Gemini Handler cho các tác vụ TEXT ---
         if gemini_api_key:
             try:
                 self.gemini_handler = GeminiTextHandler(api_key=gemini_api_key)
@@ -75,8 +70,6 @@ class MasterSearcher:
                 self.ai_enabled = True
             except Exception as e:
                 print(f"--- ⚠️ Lỗi khi khởi tạo Gemini Handler: {e}. Các tính năng text AI sẽ bị hạn chế. ---")
-
-        # --- Khởi tạo và xác thực OpenAI Handler cho các tác vụ VISION ---
         if openai_api_key:
             try:
                 self.openai_handler = OpenAIHandler(api_key=openai_api_key)
@@ -86,8 +79,6 @@ class MasterSearcher:
                     self.ai_enabled = True
             except Exception as e:
                 print(f"--- ⚠️ Lỗi khi khởi tạo OpenAI Handler: {e}. Các tính năng vision AI sẽ bị hạn chế. ---")
-        
-        # --- Khởi tạo các Solver phức tạp nếu các handler cần thiết đã sẵn sàng ---
         if self.gemini_handler:
             self.trake_solver = TRAKESolver(ai_handler=self.gemini_handler)
 
@@ -114,13 +105,11 @@ class MasterSearcher:
         
         try:
             response = self.model.generate_content(prompt)
-            # Giả định response.text là một chuỗi JSON hợp lệ
             grounding_map = json.loads(response.text)
             print(f"    -> Kết quả Grounding: {grounding_map}")
             return grounding_map
         except Exception as e:
             print(f"--- ⚠️ Lỗi trong quá trình Semantic Grounding: {e} ---")
-            # Fallback: Trả về mapping rỗng nếu có lỗi
             return {}
     
     def _deduplicate_temporally(self, results: List[Dict[str, Any]], time_threshold: int = 5) -> List[Dict[str, Any]]:
@@ -137,22 +126,15 @@ class MasterSearcher:
         """
         if not results:
             return []
-
         print(f"--- 🛡️ Bắt đầu Lọc Trùng lặp Thời gian (Ngưỡng: {time_threshold}s)... ---")
-        
         last_timestamp_per_video = {}
-        
         deduplicated_results = []
-
         for result in results:
             video_id = result.get('video_id')
             timestamp = result.get('timestamp')
-
             if not video_id or timestamp is None:
-                continue # Bỏ qua nếu thiếu thông tin
-
+                continue 
             last_seen_timestamp = last_timestamp_per_video.get(video_id)
-
             if last_seen_timestamp is None or abs(timestamp - last_seen_timestamp) > time_threshold:
                 deduplicated_results.append(result)
                 last_timestamp_per_video[video_id] = timestamp
@@ -164,7 +146,6 @@ class MasterSearcher:
         """
         Hàm tìm kiếm chính, nhận một dictionary config để tùy chỉnh hành vi.
         """
-        # --- Bước 1: Giải nén Config ---
         top_k_final = int(config.get('top_k_final', 100))
         kis_retrieval = int(config.get('kis_retrieval', 200))
         vqa_candidates_to_rank = int(config.get('vqa_candidates', 20))
@@ -176,7 +157,6 @@ class MasterSearcher:
         w_semantic = config.get('w_semantic', 0.3)
         lambda_mmr = config.get('lambda_mmr', 0.7)
 
-        # --- Bước 2: Phân tích Truy vấn ---
         query_analysis = {}
         task_type = TaskType.KIS
         if self.ai_enabled and self.gemini_handler:
@@ -185,9 +165,7 @@ class MasterSearcher:
             
             entities_to_ground = query_analysis.get('entities_to_ground', [])
             if entities_to_ground:
-                # Gọi hàm grounding để lấy bản đồ dịch
                 grounding_map = self.gemini_handler.perform_semantic_grounding(entities_to_ground)
-                # Lưu bản đồ này vào query_analysis để các tầng sau sử dụng
                 query_analysis['grounding_map'] = grounding_map
             else:
                 query_analysis['grounding_map'] = {}
@@ -210,8 +188,6 @@ class MasterSearcher:
         final_results = []
         query_analysis.update({'w_clip': w_clip, 'w_obj': w_obj, 'w_semantic': w_semantic})
         search_context = query_analysis.get('search_context', query)
-
-        # --- Bước 3: Khối Điều phối Logic ---
 
         if task_type == TaskType.TRAKE:
             if self.trake_solver:
@@ -289,20 +265,15 @@ class MasterSearcher:
         if self.video_path_map and task_type in [TaskType.KIS, TaskType.QNA]:
             for result in final_results:
                 result['video_path'] = self.video_path_map.get(result.get('video_id'))
-        # --- BƯỚC 4: ÁP DỤNG MMR ĐỂ TĂNG CƯỜNG ĐA DẠNG ---
         diverse_results = final_results
         # if self.mmr_builder and final_results:
         #     if task_type in [TaskType.KIS, TaskType.QNA]:
         #         diverse_results = self.mmr_builder.build_diverse_list(
         #             candidates=final_results, 
-        #             target_size=len(final_results), # MMR sẽ sắp xếp lại toàn bộ list
+        #             target_size=len(final_results),
         #             lambda_val=lambda_mmr
         #         )
-
-        # Tạm thời chỉ cắt bớt
         final_results_for_submission = diverse_results[:top_k_final]
-
-        # *** LOG DEBUG ĐIỂM A ***
         print("\n" + "="*20 + " DEBUG LOG: MASTER SEARCHER OUTPUT " + "="*20)
         print(f"-> Task Type cuối cùng: {task_type.value}")
         print(f"-> Số lượng kết quả cuối cùng: {len(final_results)}")
@@ -313,7 +284,7 @@ class MasterSearcher:
                 print(f"  - video_id: {first_result.get('video_id')}")
                 print(f"  - final_score: {first_result.get('final_score')}")
                 print(f"  - Số bước trong chuỗi: {len(first_result.get('sequence', []))}")
-            else: # KIS, QNA
+            else:
                 print(f"  - keyframe_id: {first_result.get('keyframe_id')}")
                 print(f"  - final_score: {first_result.get('final_score')}")
                 if 'answer' in first_result:

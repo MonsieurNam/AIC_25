@@ -1,6 +1,3 @@
-# ==============================================================================
-# SEMANTIC SEARCHER - PHIÊN BẢN V5 (TỐI ƯU HÓA & NÂNG CẤP TỪ BẢN GỐC)
-# ==============================================================================
 import os
 import pandas as pd
 import faiss
@@ -22,25 +19,19 @@ class SemanticSearcher:
         self.basic_searcher = basic_searcher
         self.model = rerank_model
         self.device = device
-        
-        # --- TẢI "HỒ DỮ LIỆU OBJECT" ---
         self.master_object_df = None
         object_data_path = "/kaggle/input/stage1/master_object_data.parquet"
         if os.path.exists(object_data_path):
             print(f"   -> Đang tải Hồ Dữ liệu Object từ: {object_data_path}")
             self.master_object_df = pd.read_parquet(object_data_path)
-            # Tối ưu hóa: Set index để tăng tốc độ truy vấn sau này
             self.master_object_df.set_index('keyframe_id', inplace=True)
             print(f"--- ✅ Tải thành công và lập chỉ mục cho {len(self.master_object_df)} object. ---")
         else:
             print("--- ⚠️ Cảnh báo: Không tìm thấy master_object_data.parquet. Bộ lọc không gian sẽ bị vô hiệu hóa. ---")
             
-        # --- TRANG BỊ CÔNG CỤ CHO TẦNG 3 ---
         print("--- 🔬 Trang bị công cụ Xác thực Chi tiết... ---")
-        # Lấy quyền truy cập vào CLIP model và processor từ BasicSearcher
         self.clip_model = basic_searcher.model
         # self.clip_processor = basic_searcher.processor
-        # Khởi tạo Ngân hàng Vector Linh hoạt
         self.object_vector_cache = ObjectVectorCache()
         print("--- ✅ Sẵn sàng hoạt động với bộ nhớ cache. ---")
             
@@ -78,7 +69,6 @@ class SemanticSearcher:
                 cand['scores']['spatial_score'] = 0.0
                 continue
             
-            # Chuẩn hóa nhãn object về chữ thường một lần
             keyframe_objects_lower = keyframe_objects.copy()
             keyframe_objects_lower['object_label'] = keyframe_objects_lower['object_label'].str.lower()
             
@@ -117,8 +107,6 @@ class SemanticSearcher:
                 for entity_box in entity_boxes:
                     if rule_satisfied: break
                     
-                    # --- ✅ KHỐI LOGIC ĐIỀU PHỐI QUAN HỆ ĐÃ ĐƯỢC MỞ RỘNG ---
-                    # Quan hệ 2 target
                     if relation == 'is_between' and len(target_boxes_lists) == 2:
                         target_pairs = [(b1, b2) for b1 in target_boxes_lists[0] for b2 in target_boxes_lists[1]]
                         for target1_box, target2_box in target_pairs:
@@ -126,10 +114,8 @@ class SemanticSearcher:
                             if is_between(entity_box, target1_box, target2_box):
                                 rule_satisfied = True; break
                     
-                    # Quan hệ 1 target
                     elif len(target_boxes_lists) == 1:
                         for target_box in target_boxes_lists[0]:
-                            # Dùng một dictionary để tra cứu hàm cho gọn
                             relation_function = {
                                 'is_behind': is_behind,
                                 'is_on': is_on,
@@ -137,7 +123,7 @@ class SemanticSearcher:
                                 'is_below': is_below,
                                 'is_next_to': is_next_to,
                                 'is_inside': is_inside
-                            }.get(relation) # .get() trả về None nếu relation không hợp lệ
+                            }.get(relation) 
                             
                             if relation_function and relation_function(entity_box, target_box):
                                 rule_satisfied = True
@@ -164,10 +150,8 @@ class SemanticSearcher:
 
         print(f"--- 🔬 Áp dụng {len(verification_rules)} Quy tắc Xác thực Chi tiết...")
         
-        # Chỉ xử lý trên top 50 ứng viên để tiết kiệm thời gian, số còn lại nhận điểm mặc định
         top_candidates = candidates[:50]
         
-        # Encode tất cả các mô tả text một lần duy nhất
         detailed_descriptions = [rule['detailed_description'] for rule in verification_rules]
         with torch.no_grad():
             text_features = self.clip_model.encode(detailed_descriptions, convert_to_tensor=True, device=self.device)
@@ -186,18 +170,15 @@ class SemanticSearcher:
                 object_vector = None
                 target_label = rule['target_entity']
                 
-                # Tìm object phù hợp nhất trong keyframe (confidence cao nhất)
                 possible_objects = keyframe_objects[keyframe_objects['object_label'].str.contains(target_label, case=False)]
                 if possible_objects.empty:
-                    continue # Bỏ qua rule này nếu không có object khớp
+                    continue 
 
                 best_object_series = possible_objects.sort_values(by='confidence_score', ascending=False).iloc[0]
     
-                # Lấy giá trị một cách an toàn và kiểm tra kiểu
                 confidence_value = best_object_series.get('confidence_score')
                 bounding_box_value = best_object_series.get('bounding_box')
 
-                # Kiểm tra kiểu dữ liệu trước khi sử dụng
                 if not isinstance(confidence_value, (int, float)):
                     print(f"--- ⚠️ WARNING: Kiểu dữ liệu confidence_score không hợp lệ ({type(confidence_value)}) cho keyframe {keyframe_id}. Bỏ qua rule. ---")
                     continue
@@ -205,14 +186,10 @@ class SemanticSearcher:
                 if bounding_box_value is None:
                     continue
                 
-                # Giờ thì chúng ta có thể yên tâm sử dụng
                 cache_key = f"{keyframe_id}_{target_label}_{confidence_value:.4f}"
                 
-                # --- KẾT THÚC THAY THẾ ---
-
-                if object_vector is None: # Cache miss
+                if object_vector is None: 
                     try:
-                        # Ép kiểu bounding_box thành list để đảm bảo
                         cropped_image = crop_image_by_box(cand['keyframe_path'], list(bounding_box_value))
                         with torch.no_grad():
                             image_features = self.clip_model.encode(cropped_image, convert_to_tensor=True, device=self.device)
@@ -223,17 +200,14 @@ class SemanticSearcher:
                     except Exception as e:
                         print(f"Lỗi khi xử lý ảnh crop cho {keyframe_id}: {e}")
                         continue
-                
-                # Tính điểm tương đồng
                 image_tensor = torch.from_numpy(object_vector).to(self.device)
                 similarity = util.pytorch_cos_sim(image_tensor, text_features[i].unsqueeze(0))
                 total_score += similarity.item()
 
             cand['scores']['fine_grained_score'] = total_score / len(verification_rules) if verification_rules else 1.0
 
-        # Gán điểm mặc định cho các ứng viên không được check
         for cand in candidates[50:]:
-            cand['scores']['fine_grained_score'] = 0.5 # Điểm trung bình
+            cand['scores']['fine_grained_score'] = 0.5 
 
         return candidates
 
@@ -250,9 +224,7 @@ class SemanticSearcher:
         """
         print("\n--- 🔱 Bắt đầu quy trình tìm kiếm đa tầng PHOENIX... ---")
 
-        # --- Bước 0: Chuẩn bị ---
         if precomputed_analysis is None: precomputed_analysis = {}
-        # Đặt trọng số mặc định và cho phép ghi đè từ UI
         final_weights = {
             'w_clip': 0.2, 
             'w_semantic': 0.3, 
@@ -261,32 +233,20 @@ class SemanticSearcher:
             **(weights or {})
         }
         print(f"    -> Trọng số hỏa lực: {final_weights}")
-
-        # --- TẦNG 1: BỘ LỌC NGỮ CẢNH (Lấy ứng viên thô bằng CLIP toàn cục) ---
         print(f"--- Tầng 1: Lấy Top-{top_k_retrieval} ứng viên theo Ngữ cảnh... ---")
         candidates = self.basic_searcher.search(query_text, top_k=top_k_retrieval)
         if not candidates:
             print("--- ⛔ Không tìm thấy ứng viên nào ở Tầng 1. Dừng tìm kiếm. ---")
             return []
         print(f"    -> Tìm thấy {len(candidates)} ứng viên tiềm năng.")
-        
-        # Khởi tạo cấu trúc điểm cho mỗi ứng viên
         for cand in candidates:
             cand['scores'] = {'clip_score': cand.get('clip_score', 0.0)}
-
-        # --- RERANKING NGỮ NGHĨA (Tinh chỉnh điểm ngữ cảnh bằng Bi-Encoder) ---
-        # (Phần này bạn cần đảm bảo logic rerank_batch của mình được tích hợp ở đây)
-        # Giả sử sau bước này, 'semantic_score' được thêm vào
         print("--- Tầng 1.5: Tinh chỉnh điểm Ngữ nghĩa bằng Bi-Encoder... ---")
-        # Ví dụ:
-        # candidates = self.rerank_with_bi_encoder(candidates, query_text)
-        # Tạm thời gán điểm giả định để code chạy được
         for cand in candidates:
-             cand['scores']['semantic_score'] = cand['scores']['clip_score'] # Tạm thời gán bằng điểm clip
+             cand['scores']['semantic_score'] = cand['scores']['clip_score'] 
         print("    -> Hoàn tất tinh chỉnh điểm ngữ nghĩa.")
 
 
-        # --- TẦNG 2: BỘ LỌC QUAN HỆ KHÔNG GIAN ---
         spatial_rules = precomputed_analysis.get('spatial_rules', [])
         
         candidates_after_spatial = self._apply_spatial_filter(
@@ -295,11 +255,8 @@ class SemanticSearcher:
             precomputed_analysis=precomputed_analysis
         )
 
-        # --- TẦNG 3: BỘ LỌC XÁC THỰC CHI TIẾT ---
         verification_rules = precomputed_analysis.get('fine_grained_verification', [])
         
-        # Sắp xếp lại trước khi đưa vào Tầng 3 để đảm bảo chỉ "soi" những ứng viên tốt nhất
-        # Tính điểm tạm thời sau Tầng 2
         for cand in candidates_after_spatial:
             s = cand['scores']
             cand['temp_score'] = (
@@ -313,26 +270,22 @@ class SemanticSearcher:
         candidates_after_fine_grained = self._apply_fine_grained_filter(sorted_before_fine_grained, verification_rules)
 
 
-        # --- BƯỚC CUỐI: TÍNH ĐIỂM TỔNG HỢP VÀ SẮP XẾP ---
         print("--- 🎯 Tính toán điểm hỏa lực cuối cùng và sắp xếp... ---")
         for cand in candidates_after_fine_grained:
             scores = cand['scores']
             
-            # Công thức điểm hoàn chỉnh
             final_score = (
                 final_weights['w_clip'] * scores.get('clip_score', 0.0) +
                 final_weights['w_semantic'] * scores.get('semantic_score', 0.0) +
-                final_weights['w_spatial'] * scores.get('spatial_score', 0.5) + # Dùng 0.5 làm điểm mặc định nếu có lỗi
-                final_weights['w_fine_grained'] * scores.get('fine_grained_score', 0.5) # Dùng 0.5 làm điểm mặc định
+                final_weights['w_spatial'] * scores.get('spatial_score', 0.5) + 
+                final_weights['w_fine_grained'] * scores.get('fine_grained_score', 0.5) 
             )
             cand['final_score'] = final_score
 
-        # Sắp xếp lại lần cuối cùng dựa trên điểm tổng hợp
         final_sorted_candidates = sorted(candidates_after_fine_grained, key=lambda x: x.get('final_score', 0.0), reverse=True)
         
         print(f"--- ✅ Quy trình PHOENIX hoàn tất. Trả về Top-{top_k_final} kết quả. ---")
         
-        # In ra 3 kết quả đầu tiên để debug
         for i, cand in enumerate(final_sorted_candidates[:3]):
             print(f"  Top {i+1}: {cand['keyframe_id']} | Score: {cand['final_score']:.4f} | Scores: {cand['scores']}")
 

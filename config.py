@@ -3,11 +3,9 @@
 import os
 from kaggle_secrets import UserSecretsClient
 
-# --- Hằng số Giao diện & Tìm kiếm ---
 ITEMS_PER_PAGE = 20
 MAX_SUBMISSION_RESULTS = 100
 
-# --- Đường dẫn tới các file dữ liệu ---
 KAGGLE_INPUT_DIR = '/kaggle/input'
 KAGGLE_WORKING_DIR = '/kaggle/working'
 UNIFIED_DATA_DIR = os.path.join(KAGGLE_WORKING_DIR, 'unified_data')
@@ -49,7 +47,6 @@ VIDEO_BASE_PATHS = [
     '/kaggle/input/batch2-k11-k20/Videos_K20/video/',
 ]
 
-# --- 3. DANH SÁCH CÁC THƯ MỤC KEYFRAME TỪ CẢ HAI BATCH ---
 KEYFRAME_BASE_PATHS = [
     # Batch 1
     '/kaggle/input/aic25-keyframes-and-metadata/keyframes/',
@@ -98,5 +95,4 @@ def load_api_keys():
         
     return openai_key, gemini_key
 
-# Tải keys khi module được import
 OPENAI_API_KEY, GEMINI_API_KEY = load_api_keys()

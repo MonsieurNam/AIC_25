@@ -22,19 +22,16 @@ def create_detailed_info_html(result: Dict[str, Any], task_type: TaskType) -> st
     Tạo mã HTML hiển thị thông tin chi tiết của một kết quả được chọn.
     *** PHIÊN BẢN SỬA LỖI HIỂN THỊ MÀU SẮC ***
     """
-    # Hàm phụ trợ tạo thanh tiến trình
     def create_progress_bar(score, color):
         percentage = max(0, min(100, score * 100))
         return f"""<div style='background: #e9ecef; border-radius: 5px; overflow: hidden; height: 8px;'><div style='background: {color}; width: {percentage}%; height: 100%;'></div></div>"""
 
-    # Lấy dữ liệu
     video_id = result.get('video_id', 'N/A')
     keyframe_id = result.get('keyframe_id', 'N/A')
     timestamp = result.get('timestamp', 0)
     final_score = result.get('final_score', 0)
     scores = result.get('scores', {})
 
-    # Bảng thông tin cơ bản
     info_html = f"""
     <div style='font-size: 14px; line-height: 1.6; background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; color: #374151;'>
         <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;'>
@@ -52,7 +49,6 @@ def create_detailed_info_html(result: Dict[str, Any], task_type: TaskType) -> st
     </div>
     """
 
-    # Bảng điểm số chi tiết
     scores_html = f"""
     <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #e5e7eb;'>
         <h4 style='margin: 0 0 15px 0; color: #111827; text-align: center;'>🏆 Bảng điểm</h4>
@@ -67,7 +63,6 @@ def create_detailed_info_html(result: Dict[str, Any], task_type: TaskType) -> st
         </div>
         """
     
-    # Các điểm thành phần
     score_items = [
         ('CLIP Score:', 'clip', '#3b82f6'), 
         ('Object Score:', 'object', '#f97316'), 
@@ -100,7 +95,7 @@ def format_submission_list_for_display(submission_list: List[Dict[str, Any]]) ->
         item_info = ""
         if task_type == TaskType.TRAKE:
             item_info = f"TRAKE Seq | Vid: {item.get('video_id')} | Score: {item.get('final_score', 0):.3f}"
-        else:  # KIS, QNA
+        else:  
             item_info = f"Frame | {item.get('keyframe_id')} | Score: {item.get('final_score', 0):.3f}"
         
         display_text.append(f"{i+1:02d}. {item_info}")
@@ -110,7 +105,6 @@ def format_submission_list_for_display(submission_list: List[Dict[str, Any]]) ->
 def build_selected_preview(gallery_items, selected_indices):
     """Tạo danh sách đường dẫn ảnh cho khu vực 'Ảnh đã chọn'."""
     imgs = []
-    # Helper function to normalize item
     def normalize_item_to_path(item):
         return item[0] if isinstance(item, (list, tuple)) else item
 

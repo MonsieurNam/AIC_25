@@ -2,8 +2,7 @@ from search_core.task_analyzer import TaskType
 import pandas as pd
 from typing import List, Dict, Any
 import os
-import json # <-- THÊM MỚI
-
+import json
 def format_submission_list_to_csv_string(submission_list: List[Dict], fps_map: dict) -> str:
     """
     Chuyển danh sách nộp bài thành một chuỗi CSV để hiển thị và chỉnh sửa.
@@ -11,8 +10,6 @@ def format_submission_list_to_csv_string(submission_list: List[Dict], fps_map: d
     if not submission_list:
         return "" 
     
-    # Tái sử dụng logic định dạng đã có để tạo DataFrame
-    # TRUYỀN fps_map XUỐNG ĐÂY
     df = format_list_for_submission(submission_list, fps_map=fps_map)
     
     if df.empty:
@@ -37,7 +34,6 @@ def _load_fps_map(path="/kaggle/input/stage1/video_fps_map.json") -> Dict[str, f
         print(f"--- ❌ LỖI NỘP BÀI: Không thể đọc file FPS map. Lỗi: {e}. Sẽ dùng FPS mặc định là 30.0 ---")
         return {}
 
-# Tải map FPS ngay khi module được import, chỉ chạy 1 lần duy nhất
 FPS_MAP = _load_fps_map()
 DEFAULT_FPS = 30.0
 
@@ -49,19 +45,16 @@ def format_results_for_gallery(response: Dict[str, Any]) -> List[str]:
     results = response.get("results", [])
     task_type = response.get("task_type")
     
-    # Logic mới: Chỉ trả về đường dẫn ảnh để UI load nhanh
     gallery_paths = []
     if not results:
         return []
 
     for res in results:
         keyframe_path = None
-        # Đối với TRAKE, lấy ảnh đại diện là frame đầu tiên của chuỗi
         if task_type == TaskType.TRAKE:
             sequence = res.get('sequence', [])
             if sequence:
                 keyframe_path = sequence[0].get('keyframe_path')
-        # Đối với KIS và QNA, lấy trực tiếp
         else:
             keyframe_path = res.get('keyframe_path')
 
@@ -74,9 +67,6 @@ def format_results_for_mute_gallery(response: Dict[str, Any]) -> List[str]:
     """
     Định dạng kết quả thô CHỈ LẤY ĐƯỜNG DẪN ẢNH cho "Lưới ảnh câm" (Cockpit v3.3).
     """
-    # ==============================================================================
-    # === DEBUG LOG: KIỂM TRA INPUT ==============================================
-    # ==============================================================================
     print("\n" + "="*20 + " DEBUG LOG: format_results_for_mute_gallery " + "="*20)
     print(f"-> Nhận được response với các key: {response.keys() if isinstance(response, dict) else 'Không phải dict'}")
     results = response.get("results", [])
@@ -85,13 +75,11 @@ def format_results_for_mute_gallery(response: Dict[str, Any]) -> List[str]:
     print(f"-> Số lượng 'results' nhận được: {len(results)}")
     if results:
         print(f"-> Cấu trúc của result đầu tiên: {results[0].keys() if isinstance(results[0], dict) else 'Không phải dict'}")
-        # Kiểm tra sự tồn tại của key 'keyframe_path'
         if 'keyframe_path' in results[0]:
              print(f"  -> Key 'keyframe_path' tồn tại. Giá trị: {results[0]['keyframe_path']}")
         else:
              print("  -> 🚨 CẢNH BÁO: Key 'keyframe_path' KHÔNG TỒN TẠI trong result đầu tiên!")
     print("="*75 + "\n")
-    # ==============================================================================
 
     if not results:
         return []
@@ -100,18 +88,16 @@ def format_results_for_mute_gallery(response: Dict[str, Any]) -> List[str]:
     
     keyframe_paths = []
 
-    # Với TRAKE, mỗi kết quả là một chuỗi. Ảnh đại diện là frame ĐẦU TIÊN của chuỗi.
     if task_type == TaskType.TRAKE:
         for sequence_result in results:
             sequence = sequence_result.get('sequence', [])
-            if sequence: # Đảm bảo chuỗi không rỗng
+            if sequence: 
                 first_frame = sequence[0]
                 path = first_frame.get('keyframe_path')
                 if path and os.path.isfile(path):
                     keyframe_paths.append(path)
     
-    # Với KIS và QNA, mỗi kết quả là một frame đơn lẻ.
-    else: # Bao gồm KIS, QNA
+    else:
         for single_frame_result in results:
             path = single_frame_result.get('keyframe_path')
             if path and os.path.isfile(path):
@@ -174,7 +160,7 @@ def format_for_submission(response: Dict[str, Any], max_results: int = 100) -> p
             submission_data.append(row)
 
     if not submission_data:
-        return pd.DataFrame() # Trả về DF rỗng nếu không có kết quả
+        return pd.DataFrame()
 
     df = pd.DataFrame(submission_data)
     
@@ -214,7 +200,6 @@ def format_list_for_submission(submission_list: List[Dict], fps_map: dict, max_r
     submission_data = []
     task_type = submission_list[0].get('task_type')
     
-    # --- XỬ LÝ KIS & QNA ---
     if task_type in [TaskType.KIS, TaskType.QNA]:
         for res in submission_list:
             video_id = res.get('video_id')
@@ -223,10 +208,8 @@ def format_list_for_submission(submission_list: List[Dict], fps_map: dict, max_r
             if video_id is None or timestamp is None:
                 continue
 
-            # --- LOGIC TÍNH TOÁN CỐT LÕI ---
             fps = fps_map.get(video_id, DEFAULT_FPS)
             frame_number = round(timestamp * fps)
-            # --- KẾT THÚC LOGIC CỐT LÕI ---
             
             row = {'video_id': video_id, 'frame_number': frame_number}
             if task_type == TaskType.QNA:
@@ -234,7 +217,6 @@ def format_list_for_submission(submission_list: List[Dict], fps_map: dict, max_r
             
             submission_data.append(row)
 
-    # --- XỬ LÝ TRAKE ---
     elif task_type == TaskType.TRAKE:
         for seq_res in submission_list:
             video_id = seq_res.get('video_id')
@@ -251,7 +233,7 @@ def format_list_for_submission(submission_list: List[Dict], fps_map: dict, max_r
                     frame_number = round(timestamp * fps)
                     row[f'frame_moment_{i+1}'] = frame_number
                 else:
-                    row[f'frame_moment_{i+1}'] = -1 # Giá trị lỗi
+                    row[f'frame_moment_{i+1}'] = -1
             submission_data.append(row)
 
     if not submission_data:

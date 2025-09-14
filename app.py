@@ -1,6 +1,3 @@
-# ==============================================================================
-# === AIC25 SEARCH FLEET - TRUNG TÂM CHỈ HUY CHIẾN DỊCH (app.py) ===
-# ==============================================================================
 print("--- 🚀 Bắt đầu khởi chạy AIC25 Search Fleet ---")
 
 print("--- Giai đoạn 1/4: Đang tải các thư viện cần thiết...")
@@ -32,7 +29,7 @@ def on_transcript_select_wrapper(results_state, query1, query2, query3, evt: gr.
     return handlers.on_transcript_select(
         results_state=results_state, video_path_map=video_path_map,
         transcript_searcher=transcript_searcher,
-        query1=query1, query2=query2, query3=query3, # <-- Thêm các query
+        query1=query1, query2=query2, query3=query3, 
         evt=evt
     )
     
@@ -41,7 +38,7 @@ def on_gallery_select_wrapper(response_state, current_page, query_input, evt: gr
         response_state=response_state,
         current_page=current_page,
         query_text=query_input,
-        transcript_searcher=transcript_searcher, # Lấy từ scope ngoài
+        transcript_searcher=transcript_searcher, 
         evt=evt
     )
 def add_to_submission_wrapper(submission_list, candidate, position):
@@ -59,7 +56,7 @@ def connect_event_listeners(ui_components):
     Kết nối TẤT CẢ các sự kiện của component UI với các hàm xử lý tương ứng.
     Đây là "bảng mạch" chính của toàn bộ ứng dụng.
     """
-    ui = ui_components # Viết tắt cho gọn
+    ui = ui_components 
     visual_search_inputs = [
         ui["query_input"], ui["num_results"], 
         ui["w_clip_slider"], ui["w_obj_slider"], 
@@ -174,7 +171,7 @@ def connect_event_listeners(ui_components):
         fn=handlers.handle_view_full_video,
         inputs=[ui["selected_candidate_for_submission"]],
         outputs=[ui["full_video_player"]],
-        queue=True # Sử dụng queue để không block UI trong lúc copy
+        queue=True 
     )
     ui["frame_calculator_button"].click(
         fn=calculate_frame_with_backend,
@@ -207,13 +204,12 @@ if __name__ == "__main__":
     print("--- 🚀 Khởi chạy Gradio App Server (Hạm đội Gọng Kìm Kép - Phiên bản Hoàn thiện) ---")
     final_allowed_paths =  VIDEO_BASE_PATHS + KEYFRAME_BASE_PATHS +["/kaggle/input/","/kaggle/working/"]
     print(f"--- 🔑 Cấp phép truy cập cho {len(final_allowed_paths)} đường dẫn và thư mục con... ---")
-    # In ra một vài đường dẫn để xác nhận
     print(f"   -> Ví dụ: {final_allowed_paths[:2]}...")
     print(f"   -> Và: {final_allowed_paths[-1]}")
     
     app.launch(
         share=True,
-        allowed_paths=final_allowed_paths, # <-- Sử dụng danh sách đã hoàn thiện
+        allowed_paths=final_allowed_paths, 
         debug=True,
         show_error=True
     )

@@ -115,7 +115,6 @@ def build_ui(connect_events_fn):
     """
     with gr.Blocks(theme=gr.themes.Soft(), css=custom_css, title="🚀 AIC25 Search Fleet") as app:
         
-        # --- Khai báo States ---
         response_state = gr.State()
         gallery_items_state = gr.State([])
         current_page_state = gr.State(1)
@@ -128,10 +127,8 @@ def build_ui(connect_events_fn):
         gr.HTML(app_header_html)
         
         with gr.Row(variant='panel'):
-            # --- CỘT TRÁI (scale=2): KHU VỰC TÌM KIẾM CHÍNH ---
             with gr.Column(scale=2):
                 with gr.Tabs():
-                    # --- TAB 1: MẮT THẦN (VISUAL SCOUT) ---
                     with gr.TabItem("👁️ Mắt Thần (Visual Scout)"):
                         gr.Markdown("### 1. Tìm kiếm bằng Hình ảnh & Ngữ nghĩa")
                         query_input = gr.Textbox(label="🔍 Nhập mô tả cảnh bạn muốn tìm...", placeholder="Ví dụ: một người phụ nữ mặc váy đỏ...", lines=2, autofocus=True)
@@ -167,7 +164,6 @@ def build_ui(connect_events_fn):
                             next_page_button = gr.Button("▶️ Trang sau")
                         results_gallery = gr.Gallery(label="Click vào một ảnh để phân tích", show_label=True, elem_id="results-gallery", columns=5, object_fit="contain", height=700, allow_preview=False)
 
-                    # --- TAB 2: TAI THÍNH (TRANSCRIPT INTEL) ---
                     with gr.TabItem("👂 Tai Thính (Transcript Intel)"):
                         gr.Markdown("### 1. Điều tra bằng Lời thoại")
                         transcript_query_1 = gr.Textbox(label="🔍 Tìm kiếm trong toàn bộ transcript...", placeholder="Ví dụ: biến đổi khí hậu")
@@ -185,14 +181,13 @@ def build_ui(connect_events_fn):
                         headers=["Video ID", "FPS", "Timestamp (s)", "Nội dung Lời thoại", "Keyframe Path"], 
                         datatype=["str", "number", "number", "markdown", "str"],
                         row_count=10, 
-                        col_count=(5, "fixed"), # Thay đổi từ 4 -> 5
+                        col_count=(5, "fixed"), 
                         wrap=True, 
                         interactive=True, 
                         visible=True, 
-                        column_widths=["15%", "8%", "12%", "55%", "0%"], # Thêm % cho cột FPS và điều chỉnh lại
+                        column_widths=["15%", "8%", "12%", "55%", "0%"], 
                         elem_id="transcript-dataframe"
                     )
-            # --- CỘT PHẢI (scale=1): TRẠM PHÂN TÍCH & NỘP BÀI (DÙNG CHUNG) ---
             with gr.Column(scale=1):
                 gr.Markdown("### 🔬 Trạm Phân tích Hợp nhất")
                 with gr.Accordion("Media Player & Phân tích", open=True):
@@ -201,7 +196,7 @@ def build_ui(connect_events_fn):
                     full_transcript_display = gr.Markdown(
                         label="📜 Transcript (nếu có)", 
                         value="Nội dung transcript của video sẽ hiện ở đây...",
-                        elem_id="full-transcript-box" # <-- Thêm dòng này
+                        elem_id="full-transcript-box" 
                     )
                     analysis_display_html = gr.HTML(label="📊 Phân tích Điểm số (cho Visual Search)")
                     with gr.Accordion("🎬 Trình phát Video Gốc (Toàn bộ)", open=True):
@@ -228,7 +223,6 @@ def build_ui(connect_events_fn):
         
         gr.HTML(app_footer_html)
         
-        # --- TẬP TRUNG TOÀN BỘ COMPONENTS VÀO MỘT DICTIONARY ĐỂ QUẢN LÝ ---
         components = {
             # States
             "response_state": response_state, "gallery_items_state": gallery_items_state,

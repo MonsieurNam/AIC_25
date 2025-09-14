@@ -1,14 +1,3 @@
-# ==============================================================================
-# GEMINI TEXT HANDLER - PHIÊN BẢN CUỐI CÙNG (ENTITY-AWARE)
-# File: gemini_text_handler.py
-#
-# THAY ĐỔI CỐT LÕI:
-#   - Sửa đổi SYSTEM_PROMPT để tích hợp "Từ điển Đối tượng Toàn cục",
-#     hướng dẫn Gemini ưu tiên sử dụng các nhãn thực thể đã biết.
-#   - Tối ưu hóa việc tạo prompt để tăng độ chính xác của Semantic Grounding
-#     và phân tích không gian.
-# ==============================================================================
-
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from typing import Dict, Any, List, Set
@@ -22,7 +11,6 @@ class GeminiTextHandler:
     Một class chuyên dụng để xử lý TẤT CẢ các tác vụ liên quan đến văn bản
     bằng API của Google Gemini. PHIÊN BẢN NÂNG CẤP (ENTITY-AWARE).
     """
-
     def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash"):
         """
         Khởi tạo và xác thực Gemini Text Handler.
@@ -32,9 +20,7 @@ class GeminiTextHandler:
         try:
             genai.configure(api_key=api_key)
             self.model = genai.GenerativeModel(model_name)
-            self.known_entities_prompt_segment: str = "[]" # Mặc định là list rỗng dạng chuỗi
-            
-            # --- Cấu hình API call ---
+            self.known_entities_prompt_segment: str = "[]" 
             self.generation_config = {
                 "temperature": 0.1,
                 "top_p": 0.95,
@@ -47,7 +33,6 @@ class GeminiTextHandler:
                 'SEXUAL': 'BLOCK_NONE', 'DANGEROUS': 'BLOCK_NONE'
             }
             
-            # --- Xác thực API Key bằng một lệnh gọi nhỏ ---
             print("--- 🩺 Đang thực hiện kiểm tra trạng thái API Gemini... ---")
             self.model.count_tokens("test") 
             print("--- ✅ Trạng thái API Gemini: OK ---")
@@ -128,7 +113,6 @@ class GeminiTextHandler:
             return
         
         sorted_entities = sorted(list(known_entities))
-        # Định dạng thành chuỗi JSON để nhúng vào prompt
         self.known_entities_prompt_segment = json.dumps(sorted_entities)
         print(f"--- ✅ GeminiTextHandler: Đã nạp {len(sorted_entities)} thực thể vào bộ nhớ prompt. ---")
 
@@ -149,8 +133,6 @@ class GeminiTextHandler:
                 if raw_response_text.startswith("```json"):
                     raw_response_text = raw_response_text[7:-3].strip()
                 analysis_json = json.loads(raw_response_text)
-                
-                # Trích xuất các thực thể cần được "grounding" sau này
                 entities_to_ground = set()
                 if 'spatial_rules' in analysis_json and isinstance(analysis_json['spatial_rules'], list):
                     for rule in analysis_json['spatial_rules']:
@@ -205,7 +187,6 @@ class GeminiTextHandler:
             print(f"--- ⚠️ Lỗi trong quá trình Semantic Grounding: {e} ---")
             return {}
             
-    # --- CÁC HÀM CŨ KHÔNG THAY ĐỔI ---
     def decompose_trake_query(self, query: str) -> List[str]:
         """Phân rã truy vấn TRAKE bằng Gemini."""
         prompt = f"""

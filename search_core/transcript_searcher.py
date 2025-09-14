@@ -23,30 +23,16 @@ class TranscriptSearcher:
             if not os.path.exists(metadata_path):
                 raise FileNotFoundError(f"File metadata không tồn tại tại: {metadata_path}")
             
-            # Tải toàn bộ dữ liệu, nhưng chỉ giữ lại các cột cần thiết để tiết kiệm RAM
             cols_to_load = [
                 'video_id', 'timestamp', 'transcript_text', 'keyframe_path'
             ]
             
             print(f"-> Đang tải dữ liệu transcript từ {metadata_path}...")
             self.full_data = pd.read_parquet(metadata_path, columns=cols_to_load)
-            
-            # ==================================================================
-            # === BƯỚC 1: TINH CHỈNH LÀM SẠCH DỮ LIỆU ---
-            # ==================================================================
             print("-> Đang làm sạch (strip) và lọc dữ liệu transcript...")
-            
-            # 1. Loại bỏ khoảng trắng thừa ở đầu và cuối chuỗi
             self.full_data['transcript_text'] = self.full_data['transcript_text'].str.strip()
-            
-            # 2. Loại bỏ các dòng không có transcript để tối ưu hóa tìm kiếm
-            #    Sử dụng dropna để xử lý các giá trị None/NaN một cách an toàn
             self.full_data.dropna(subset=['transcript_text'], inplace=True)
-            #    Sau đó lọc bỏ các chuỗi rỗng
             self.full_data = self.full_data[self.full_data['transcript_text'] != ''].copy()
-            # ==================================================================
-            
-            # Reset index để các thao tác lọc sau này (dựa trên iloc) được chính xác
             self.full_data.reset_index(drop=True, inplace=True)
             
             print(f"--- ✅ Transcript Searcher đã nạp và chuẩn bị {len(self.full_data)} dòng transcript sạch. Sẵn sàng hoạt động! ---")

@@ -2,22 +2,6 @@
 
 from typing import List, Tuple
 
-# ==============================================================================
-# === HỆ THỐNG NHẬN THỨC KHÔNG GIAN (SPATIAL AWARENESS SYSTEM) - V2.0 ===
-# ==============================================================================
-#
-# Cung cấp các hàm toán học để phân tích mối quan hệ không gian giữa các
-# bounding box. Tất cả các hàm đều hoạt động với tọa độ tương đối [y1, x1, y2, x2].
-#
-# (0,0) là góc trên cùng bên trái của ảnh.
-# Trục Y tăng dần xuống dưới.
-# Trục X tăng dần sang phải.
-#
-# ==============================================================================
-
-
-# --- HÀM CƠ SỞ ---
-
 def get_center(box: List[float]) -> Tuple[float, float]:
     """
     Tính toán tọa độ tâm của một bounding box.
@@ -29,7 +13,7 @@ def get_center(box: List[float]) -> Tuple[float, float]:
         Một tuple (center_x, center_y).
     """
     if not (isinstance(box, list) and len(box) == 4):
-        return (0.5, 0.5) # Trả về tâm ảnh nếu box không hợp lệ
+        return (0.5, 0.5) 
     center_y = (box[0] + box[2]) / 2
     center_x = (box[1] + box[3]) / 2
     return center_x, center_y
@@ -48,28 +32,19 @@ def get_iou(box_a: List[float], box_b: List[float]) -> float:
     IoU = Diện tích phần giao / Diện tích phần hợp.
     Trả về giá trị từ 0.0 (không giao) đến 1.0 (trùng khớp hoàn toàn).
     """
-    # Xác định tọa độ của vùng giao nhau
     xA = max(box_a[1], box_b[1])
     yA = max(box_a[0], box_b[0])
     xB = min(box_a[3], box_b[3])
     yB = min(box_a[2], box_b[2])
 
-    # Tính diện tích vùng giao
     intersection_area = max(0, xB - xA) * max(0, yB - yA)
-
-    # Tính diện tích của từng box
     box_a_area = (box_a[3] - box_a[1]) * (box_a[2] - box_a[0])
     box_b_area = (box_b[3] - box_b[1]) * (box_b[2] - box_b[0])
-
-    # Tính diện tích hợp
     union_area = box_a_area + box_b_area - intersection_area
-
-    # Tính IoU
     iou = intersection_area / union_area if union_area > 0 else 0
     return iou
 
 
-# --- CÁC HÀM QUAN HỆ KHÔNG GIAN ---
 
 def is_between(box_a: List[float], box_b: List[float], box_c: List[float], tolerance: float = 0.1) -> bool:
     """
@@ -80,11 +55,7 @@ def is_between(box_a: List[float], box_b: List[float], box_c: List[float], toler
     center_b_x, center_b_y = get_center(box_b)
     center_c_x, center_c_y = get_center(box_c)
     
-    # Điều kiện 1: Tâm của A phải nằm giữa B và C theo trục X.
     horizontal_check = min(center_b_x, center_c_x) <= center_a_x <= max(center_b_x, center_c_x)
-    
-    # Điều kiện 2: Tâm của A phải gần với đường thẳng nối B và C theo trục Y.
-    # Tính trung bình tọa độ Y của B và C.
     avg_y = (center_b_y + center_c_y) / 2
     vertical_check = abs(center_a_y - avg_y) < tolerance
     
@@ -99,7 +70,6 @@ def is_behind(box_a: List[float], box_b: List[float]) -> bool:
     _, center_a_y = get_center(box_a)
     _, center_b_y = get_center(box_b)
     
-    # A được coi là "phía sau" B nếu tâm của nó cao hơn (Y nhỏ hơn) tâm của B.
     return center_a_y < center_b_y
 
 def is_on(box_a: List[float], box_b: List[float]) -> bool:
@@ -135,18 +105,11 @@ def is_next_to(box_a: List[float], box_b: List[float], tolerance_ratio: float = 
     center_a_x, center_a_y = get_center(box_a)
     center_b_x, center_b_y = get_center(box_b)
 
-    # 1. Tính khoảng cách ngang giữa hai tâm
     horizontal_distance = abs(center_a_x - center_b_x)
-    # Tính tổng một nửa chiều rộng của hai box
     sum_half_widths = (box_a[3] - box_a[1]) / 2 + (box_b[3] - box_b[1]) / 2
-    # Điều kiện gần nhau theo chiều ngang: khoảng cách tâm < tổng nửa chiều rộng
     is_horizontally_close = horizontal_distance < sum_half_widths
-
-    # 2. Tính độ chồng lấn theo chiều dọc
     y_overlap = max(0, min(box_a[2], box_b[2]) - max(box_a[0], box_b[0]))
-    # Chiều cao của box nhỏ hơn
     min_height = min(box_a[2] - box_a[0], box_b[2] - box_b[0])
-    # Điều kiện chồng lấn dọc: độ chồng lấn phải lớn hơn một ngưỡng
     is_vertically_aligned = y_overlap > min_height * tolerance_ratio
 
     return is_horizontally_close and is_vertically_aligned

@@ -13,16 +13,12 @@ import re
 import traceback
 from typing import Dict, Any, List, Optional
 
-# Local imports
 from config import ITEMS_PER_PAGE, MAX_SUBMISSION_RESULTS
 from ui_helpers import create_detailed_info_html
 from search_core.task_analyzer import TaskType
 from utils import create_video_segment, generate_submission_file
 from utils.formatting import format_submission_list_to_csv_string, format_results_for_mute_gallery 
 
-# ==============================================================================
-# === CÁC HÀM TRỢ GIÚP ===
-# ==============================================================================
 def highlight_keywords(full_text: str, keywords: List[str]) -> str:
     """
     Tô sáng tất cả các từ khóa trong một đoạn văn bản và chuyển nó thành HTML.
@@ -64,13 +60,10 @@ def clear_gallery():
     return None
 
 def perform_search(
-    # --- Các tham số cũ ---
     query_text: str, num_results: int, 
     w_clip: float, w_obj: float, w_semantic: float, 
     lambda_mmr: float, initial_retrieval_count: int,
-    # --- ✅ Các tham số mới từ slider ---
     w_spatial: float, w_fine_grained: float,
-    # --- Backend object từ partial ---
     master_searcher
 ):
     """
@@ -83,14 +76,13 @@ def perform_search(
     gr.Info("🚀 Kích hoạt quy trình tìm kiếm đa tầng PHOENIX...")
     
     try:
-        # Đóng gói TOÀN BỘ cấu hình vào một dictionary duy nhất
         config = {
             "top_k_final": int(num_results),
             "kis_retrieval": int(initial_retrieval_count),
             "lambda_mmr": lambda_mmr,
             "weights": {
                 'w_clip': w_clip,
-                'w_obj': w_obj, # w_obj vẫn được gửi xuống, dù có thể không dùng trong PHOENIX
+                'w_obj': w_obj, 
                 'w_semantic': w_semantic,
                 'w_spatial': w_spatial,
                 'w_fine_grained': w_fine_grained
@@ -105,7 +97,6 @@ def perform_search(
         traceback.print_exc()
         return [], f"<div style='color: red;'>🔥 Lỗi backend: {e}</div>", None, [], 1, "Trang 1 / 1"
     
-    # --- Phần xử lý kết quả và trả về cho UI giữ nguyên ---
     gallery_paths = format_results_for_mute_gallery(full_response)
     num_found = len(gallery_paths)
     task_type_msg = full_response.get('task_type', TaskType.KIS).value
@@ -142,7 +133,7 @@ def handle_transcript_search(query1: str, query2: str, query3: str, transcript_s
     
     display_df.rename(columns={
         'video_id': 'Video ID',
-        'fps': 'FPS', # <-- Thêm tên cột mới
+        'fps': 'FPS', 
         'timestamp': 'Timestamp (s)',
         'highlighted_text': 'Nội dung Lời thoại',
         'keyframe_path': 'Keyframe Path'
@@ -153,9 +144,6 @@ def handle_transcript_search(query1: str, query2: str, query3: str, transcript_s
 def clear_transcript_search():
     return "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(), None
 
-# ==============================================================================
-# === HANDLERS CHO SỰ KIỆN SELECT (CẬP NHẬT TRẠM PHÂN TÍCH) ===
-# ==============================================================================
 
 def on_gallery_select(response_state: Dict, current_page: int, query_text: str, transcript_searcher, evt: gr.SelectData):
     empty_return = clear_analysis_panel()
@@ -168,7 +156,6 @@ def on_gallery_select(response_state: Dict, current_page: int, query_text: str, 
     selected_result = results[global_index]
     video_id = selected_result.get('video_id')
     
-    # Lấy lại video_path từ selected_result vì nó đã có sẵn
     video_path = selected_result.get('video_path')
     
     print("\n" + "="*20 + " DEBUG LOG: on_gallery_select " + "="*20)
@@ -242,9 +229,6 @@ def on_transcript_select(results_state: pd.DataFrame, video_path_map: dict, tran
         gr.Error(f"Lỗi khi xử lý lựa chọn transcript: {e}")
         return empty_return
 
-# ==============================================================================
-# === HANDLERS CHO BẢNG ĐIỀU KHIỂN NỘP BÀI ===
-# ==============================================================================
 
 def add_to_submission_list(submission_list: list, candidate: dict, position: str, fps_map: dict):
     if not candidate:
@@ -254,7 +238,6 @@ def add_to_submission_list(submission_list: list, candidate: dict, position: str
     if len(submission_list) >= MAX_SUBMISSION_RESULTS:
         gr.Warning(f"Danh sách đã đạt giới hạn {MAX_SUBMISSION_RESULTS} kết quả.")
     else:
-        # Cần thêm 'task_type' vào candidate trước khi thêm
         item_to_add = candidate.copy()
         if 'task_type' not in item_to_add:
             item_to_add['task_type'] = TaskType.KIS
@@ -278,7 +261,7 @@ def add_transcript_result_to_submission(submission_list: list, results_state: pd
             "video_id": selected_row['video_id'], "timestamp": selected_row['timestamp'],
             "keyframe_id": os.path.basename(selected_row['keyframe_path']).replace('.jpg', ''),
             "keyframe_path": selected_row['keyframe_path'],
-            "task_type": TaskType.KIS # Gán task_type mặc định
+            "task_type": TaskType.KIS 
         }
         return add_to_submission_list(submission_list, candidate, position, fps_map)
     except IndexError:
@@ -302,8 +285,6 @@ def handle_submission(submission_text: str, query_id: str):
         return None
     
     try:
-        # Tái tạo DataFrame từ text người dùng đã sửa
-        # Giả định text là CSV không có header
         df = pd.read_csv(StringIO(submission_text.strip()), header=None)
         
         file_path = generate_submission_file(df, query_id=query_id)
@@ -312,10 +293,6 @@ def handle_submission(submission_text: str, query_id: str):
     except Exception as e:
         gr.Error(f"Lỗi khi xử lý nội dung nộp bài: {e}. Hãy kiểm tra lại định dạng CSV.")
         return None
-
-# ==============================================================================
-# === HANDLERS CHO CÁC CÔNG CỤ PHỤ TRỢ VÀ NÚT TIỆN ÍCH ===
-# ==============================================================================
 
 def update_gallery_page(gallery_items: list, current_page: int, direction: str):
     if not gallery_items: return [], 1, "Trang 1 / 1"
@@ -342,21 +319,14 @@ def calculate_frame_number(video_id: str, time_input: str, fps_map: dict):
     except Exception:
         return f"Lỗi: Định dạng thời gian '{time_input}' không hợp lệ."
 
-# Sửa lại event_handlers.py
 
 def clear_all():
     return (
-        # Mắt Thần (7)
         "", gr.Gallery(value=None), "", None, [], 1, "Trang 1 / 1",
-        # Tai Thính (6)
         "", "", "", "Tìm thấy: 0 kết quả.", pd.DataFrame(), None,
-        # Trạm Phân tích Hợp nhất (5)
-        None, None, "", "", None, #<-- SỬA LẠI THÀNH 5 GIÁ TRỊ
-        # Bảng điều khiển Nộp bài (2)
+        None, None, "", "", None, 
         [], "",
-        # Máy tính (3)
         "", "", "",
-        # Vùng Xuất file (2)
         "", None
     )
     
@@ -365,10 +335,8 @@ def handle_view_full_video(selected_candidate: Dict):
     Sao chép video gốc từ /kaggle/input sang /kaggle/working để phát.
     Phiên bản này có log chi tiết để theo dõi quá trình.
     """
-    # === LOG: BẮT ĐẦU QUY TRÌNH ===
     print("\n" + "="*20 + " LOG: Tải Video Gốc " + "="*20)
     
-    # 1. Kiểm tra đầu vào
     if not selected_candidate or not isinstance(selected_candidate, dict):
         gr.Warning("Vui lòng chọn một kết quả hợp lệ trước khi xem video gốc.")
         print("-> [VALIDATION FAILED] selected_candidate không hợp lệ hoặc không phải dict.")
@@ -378,7 +346,6 @@ def handle_view_full_video(selected_candidate: Dict):
     video_id = selected_candidate.get('video_id', 'N/A')
     print(f"-> Nhận lệnh tải video cho: '{video_id}'")
 
-    # 2. Lấy và kiểm tra đường dẫn nguồn
     source_path = selected_candidate.get('video_path')
     print(f"   -> Đường dẫn nguồn (source): '{source_path}'")
     if not source_path or not os.path.exists(source_path):
@@ -387,21 +354,19 @@ def handle_view_full_video(selected_candidate: Dict):
         print("="*60 + "\n")
         return None
 
-    # 3. Chuẩn bị đường dẫn đích
     destination_dir = "/kaggle/working/temp_full_videos"
     os.makedirs(destination_dir, exist_ok=True)
     destination_path = os.path.join(destination_dir, os.path.basename(source_path))
     print(f"   -> Đường dẫn đích (destination): '{destination_path}'")
 
-    # 4. Logic sao chép chính
     if not os.path.exists(destination_path):
         gr.Info(f"Đang sao chép video '{os.path.basename(source_path)}'...")
         print(f"   -> File chưa tồn tại ở đích. Bắt đầu sao chép...")
         
-        start_time = time.time() # Bắt đầu đếm giờ
+        start_time = time.time() 
         try:
             shutil.copy(source_path, destination_path)
-            end_time = time.time() # Kết thúc đếm giờ
+            end_time = time.time() 
             elapsed_time = end_time - start_time
             
             gr.Success("Sao chép hoàn tất! Bắt đầu phát video.")
@@ -416,7 +381,6 @@ def handle_view_full_video(selected_candidate: Dict):
         gr.Info("Video đã có sẵn trong cache, bắt đầu phát.")
         print("   -> File đã tồn tại ở đích. Bỏ qua bước sao chép.")
 
-    # 5. Trả kết quả về cho Gradio
     print(f"-> Hoàn tất. Trả về đường dẫn '{destination_path}' cho Gradio.")
     print("="*60 + "\n")
     
