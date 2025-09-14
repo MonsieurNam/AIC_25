@@ -1,125 +1,134 @@
-# 🚀 AIC25 Search Fleet - Hạm đội Tìm kiếm Video
+Of course. Based on the sophisticated and well-structured nature of your project, here is a professional, comprehensive `README.md` file written in English.
+
+---
+
+# 🚀 AIC25 Search Fleet: A Hybrid AI Video Search Engine
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 📖 Giới thiệu
+## 📖 Overview
 
-**AIC25 Search Fleet** là một công cụ tìm kiếm video thông minh và mạnh mẽ được phát triển cho cuộc thi AI City Challenge 2025. Dự án được xây dựng với kiến trúc "Tấn công Hai Gọng Kìm", cho phép người dùng khai thác thông tin từ video thông qua cả hai phương diện: hình ảnh và lời thoại.
+**AIC25 Search Fleet** is an advanced, multi-modal video search engine designed for the AI City Challenge 2025. This project implements a powerful "dual-pronged" strategy, allowing users to query a massive video dataset through two distinct yet complementary lenses:
 
-- **👁️ Mắt Thần (Visual Scout):** Tìm kiếm dựa trên mô tả ngữ nghĩa và hình ảnh. Người dùng có thể mô tả một cảnh tượng phức tạp, và hệ thống sẽ phân tích, phân rã truy vấn, sau đó tìm kiếm và tái xếp hạng các keyframe phù hợp nhất bằng một quy trình đa tầng tinh vi.
-- **👂 Tai Thính (Transcript Intel):** Điều tra dựa trên nội dung lời thoại. Người dùng có thể lọc qua hàng triệu dòng transcript để nhanh chóng tìm ra những khoảnh khắc mà một từ khóa hoặc cụm từ cụ thể được nhắc đến.
+*   **👁️ Visual Scout:** A semantic and spatial visual search engine. It processes complex natural language queries, decomposing them into searchable visual concepts. It then employs a sophisticated multi-stage reranking pipeline to find the most relevant keyframes.
+*   **👂 Transcript Intel:** A high-performance transcript investigation tool. It enables users to perform nested, keyword-based searches across millions of transcript lines, instantly pinpointing moments where specific topics are discussed.
 
-Hệ thống được trang bị giao diện người dùng trực quan xây dựng bằng Gradio, giúp các nhà phân tích dễ dàng tương tác, khám phá kết quả, và quản lý danh sách nộp bài một cách hiệu quả.
+The entire system is wrapped in an intuitive and feature-rich user interface built with Gradio, providing analysts with a powerful cockpit for video exploration, analysis, and submission management.
 
-## ✨ Tính năng nổi bật
+*(Placeholder for a GIF or screenshot of the application)*
 
-*   **Tìm kiếm Ngữ nghĩa Đa tầng (Phoenix Reranking):**
-    *   **Phân rã Truy vấn:** Tự động chia một truy vấn phức tạp thành nhiều truy vấn con đơn giản, tập trung vào các yếu tố hình ảnh cốt lõi.
-    *   **Lọc Đa tầng:** Áp dụng nhiều lớp bộ lọc để tái xếp hạng kết quả: điểm tương đồng hình ảnh (CLIP), điểm ngữ nghĩa (Bi-Encoder), điểm phù hợp không gian (Spatial Scoring), và xác thực chi tiết (Fine-grained Verification).
-    *   **Đa dạng hóa Kết quả (MMR):** Sử dụng thuật toán Maximal Marginal Relevance để đảm bảo các kết quả trả về không bị trùng lặp và bao quát được nhiều khía cạnh của truy vấn.
-*   **Tìm kiếm Lời thoại Nâng cao:**
-    *   Lọc lồng nhau với nhiều từ khóa để thu hẹp phạm vi tìm kiếm.
-    *   Tự động tô sáng (highlight) từ khóa trong kết quả để dễ dàng xác định.
-*   **Giao diện Tương tác Toàn diện:**
-    *   Hiển thị kết quả dưới dạng lưới ảnh (gallery) có phân trang.
-    *   Khi chọn một kết quả, hệ thống tự động hiển thị keyframe, một đoạn video clip 30 giây xung quanh khoảnh khắc đó, và toàn bộ lời thoại của video.
-    *   Cung cấp bảng phân tích điểm số chi tiết cho các kết quả tìm kiếm bằng hình ảnh.
-*   **Quản lý Nộp bài Chuyên nghiệp:**
-    *   Thêm/bớt kết quả vào danh sách nộp bài từ cả hai tab tìm kiếm (Visual và Transcript).
-    *   Chỉnh sửa trực tiếp nội dung file nộp bài ngay trên giao diện.
-    *   Tự động tính toán số thứ tự frame (frame index) từ timestamp và FPS của video.
-    *   Xuất file `.csv` theo đúng định dạng yêu cầu của ban tổ chức.
-*   **Công cụ Hỗ trợ:**
-    *   **Frame Calculator:** Một tiện ích nhỏ để nhanh chóng chuyển đổi giữa timestamp (giây hoặc phút:giây) và số thứ tự frame.
-    *   **Trình phát Video Gốc:** Cho phép tải và xem toàn bộ video gốc chỉ với một cú nhấp chuột.
 
-## 🏗️ Kiến trúc Hệ thống
+## ✨ Key Features
 
-Hệ thống được chia thành ba khối chính: **Giao diện người dùng (UI)**, **Backend Logic**, và **Lõi Tìm kiếm (Search Core)**.
+*   **Hybrid AI Core:** Leverages both **Google Gemini** (for advanced text analysis, query decomposition, and entity grounding) and **OpenAI GPT-4o** (for high-fidelity Visual Question Answering), creating a robust, multi-faceted AI backbone.
+*   **"Phoenix" Reranking Pipeline:** A state-of-the-art, multi-stage process for refining search results:
+    1.  **Initial Retrieval:** Fast candidate selection using a FAISS index with CLIP embeddings.
+    2.  **Semantic Reranking:** Refines scores using a Vietnamese-specific Bi-Encoder model.
+    3.  **Spatial Filtering:** Verifies spatial relationships between detected objects (e.g., "a person *behind* a car").
+    4.  **Fine-Grained Verification:** Uses CLIP to analyze cropped object regions for detailed attributes (e.g., "a flag with a yellow star").
+*   **Dynamic Query Decomposer:** Intelligently breaks down long, complex user queries into multiple, simpler, and visually searchable sub-queries, which are then executed in parallel.
+*   **Result Diversity Engine:** Implements Maximal Marginal Relevance (MMR) to prevent result duplication and ensure the final output is diverse and comprehensive.
+*   **Advanced Transcriptomics:** A highly optimized transcript search engine that allows for chained filtering, keyword highlighting, and seamless integration with the visual analysis panel.
+*   **Comprehensive Interactive UI:**
+    *   Dual-tab interface for clear separation between visual and transcript search.
+    *   A unified analysis panel showing the selected keyframe, a 30-second video preview, the full video transcript, and a detailed scoring breakdown.
+    *   Integrated full-video player that copies source files on-demand to avoid breaking Gradio's file access rules.
+*   **Robust Submission Workflow:**
+    *   Easily add candidates from either search method to a persistent submission list.
+    *   A live-editable submission editor that syncs with the internal list.
+    *   Automated frame index calculation based on video-specific FPS maps.
+    *   One-click generation of properly formatted `.csv` submission files.
 
-1.  **Giao diện Người dùng (Frontend - Gradio):**
-    *   `app.py`: Điểm khởi chạy chính của ứng dụng.
-    *   `ui_layout.py`: Định nghĩa toàn bộ cấu trúc, bố cục của các thành phần trên giao diện.
-    *   `ui_helpers.py`: Chứa các hàm hỗ trợ việc tạo mã HTML động và định dạng hiển thị.
-    *   `event_handlers.py`: "Bảng mạch" của ứng dụng, kết nối các hành động của người dùng (nhấn nút, chọn ảnh) với các hàm xử lý ở backend.
+## 🏗️ System Architecture
 
-2.  **Backend & Tải dữ liệu:**
-    *   `backend_loader.py`: Chịu trách nhiệm khởi tạo tất cả các thành-phần-cốt-lõi của hệ thống, bao gồm việc tải các mô hình AI, đọc các file dữ liệu lớn (metadata, index FAISS), và ánh xạ đường dẫn video.
-    *   `config.py`: Tệp cấu hình trung tâm, chứa tất cả các đường dẫn file, hằng số và khóa API.
+The project is logically divided into three main layers: Frontend (UI), Backend (Logic & Data Loading), and the Search Core (AI Engines).
 
-3.  **Lõi Tìm kiếm (Search Core):**
-    *   `master_searcher.py`: "Tổng chỉ huy" của chiến dịch tìm kiếm. Nó tiếp nhận truy vấn, điều phối các `searcher` con, và tổng hợp kết quả cuối cùng.
-    *   `query_decomposer.py`: Sử dụng mô hình ngôn ngữ lớn (Gemini) để phân rã truy vấn phức tạp.
-    *   `semantic_searcher.py`: Chịu trách nhiệm cho quy trình tái xếp hạng đa tầng (Phoenix).
-    *   `basic_searcher.py`: Thực hiện bước tìm kiếm cơ bản ban đầu bằng FAISS và CLIP.
-    *   `gemini_text_handler.py` & `openai_handler.py`: Các lớp chuyên dụng để tương tác với API của Google Gemini và OpenAI cho các tác vụ phân tích văn bản và hình ảnh.
-    *   `transcript_searcher.py`: Động cơ tìm kiếm hiệu năng cao trên dữ liệu lời thoại.
-    *   `mmr_builder.py`: Module thực thi thuật toán MMR để đa dạng hóa kết quả.
-    *   `spatial_engine.py`: Thư viện chứa các hàm logic để xác minh mối quan hệ không gian giữa các đối tượng (ví dụ: "người A đứng sau xe B").
-    *   Các module khác như `task_analyzer.py`, `trake_solver.py`, `vqa_handler.py` cung cấp các chức năng chuyên biệt khác.
+1.  **Frontend (Gradio Interface)**
+    *   `app.py`: The main entry point that launches the Gradio server.
+    *   `ui_layout.py`: Defines the complete layout and structure of all UI components.
+    *   `ui_helpers.py`: Provides helper functions for generating dynamic HTML content (like the score analysis panel) and formatting data for display.
+    *   `event_handlers.py`: The "central nervous system" of the UI, connecting user actions (button clicks, selections) to the appropriate backend functions.
 
-4.  **Tiện ích (Utils):**
-    *   Thư mục `utils` chứa các hàm tiện ích đa dụng như cắt video (`video_utils.py`), định dạng file nộp bài (`formatting.py`), quản lý cache (`cache_manager.py`), v.v.
+2.  **Backend (Orchestration & Data Loading)**
+    *   `backend_loader.py`: Responsible for initializing all core backend components. It loads AI models, reads large data files (metadata, FAISS index), and maps all video paths across multiple data batches.
+    *   `config.py`: A centralized configuration file for all file paths, constants, and API keys, which are securely loaded from Kaggle Secrets.
 
-## 🚀 Cài đặt và Khởi chạy
+3.  **Search Core (The Engine Room)**
+    *   `master_searcher.py`: The primary orchestrator. It receives the user query, determines the task type, coordinates the various sub-searchers and AI handlers, and returns the final, polished result.
+    *   `basic_searcher.py`: Implements the initial, fast retrieval stage using a FAISS index and a CLIP model for encoding text queries.
+    *   `semantic_searcher.py`: Contains the logic for the multi-stage "Phoenix" reranking pipeline.
+    *   `query_decomposer.py`: A dedicated class using Gemini to break down complex queries.
+    *   `gemini_text_handler.py` & `openai_handler.py`: Specialized handlers that act as adapters to the Google and OpenAI APIs, encapsulating logic for API calls, retries, and error handling.
+    *   `task_analyzer.py`: Classifies the user's intent into different task types (e.g., simple KIS, Q&A, or Action Tracking).
+    *   `mmr_builder.py`: Implements the MMR algorithm to diversify search results.
+    *   `transcript_searcher.py`: A high-performance, in-memory search engine for video transcripts.
+    *   `utils/`: A package of helper modules for common tasks like video clipping (`video_utils.py`), spatial relationship logic (`spatial_engine.py`), and submission formatting (`formatting.py`).
 
-1.  **Clone a repository:**
+## 🚀 Setup and Launch
+
+1.  **Clone the Repository:**
     ```bash
-    git clone git clone https://github.com/MonsieurNam/AIC_25.git
+    git clone https://your-repository-url/Project_AIC_Ver2.git
     cd Project_AIC_Ver2
     ```
 
-2.  **Cài đặt các thư viện cần thiết:**
+2.  **Install Dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-3.  **Cấu hình API Keys:**
-    *   Truy cập vào dịch vụ Kaggle và thêm các API Key của bạn vào mục Secrets với các tên sau:
+3.  **Configure API Keys:**
+    *   Navigate to your Kaggle notebook's "Secrets" section.
+    *   Add your API keys with the following exact names:
         *   `OPENAI_API_KEY`
-        *   `GOOGLE_API_KEY` (dành cho Gemini)
-    *   File `config.py` sẽ tự động đọc các secret này.
+        *   `GOOGLE_API_KEY` (for the Gemini API)
+    *   The `config.py` file is pre-configured to load these secrets automatically.
 
-4.  **Chuẩn bị Dữ liệu:**
-    *   Đảm bảo rằng các đường dẫn tới file dữ liệu trong `config.py` (ví dụ: `CLIP_FEATURES_PATH`, `FAISS_INDEX_PATH`, `RERANK_METADATA_PATH`, v.v.) là chính xác và trỏ đến vị trí các file dữ liệu của bạn.
-    *   Cập nhật các đường dẫn `VIDEO_BASE_PATHS` và `KEYFRAME_BASE_PATHS` để trỏ đến các thư mục chứa video và keyframe của các batch dữ liệu.
+4.  **Verify Data Paths:**
+    *   Open `config.py`.
+    *   Ensure that all paths (`CLIP_FEATURES_PATH`, `FAISS_INDEX_PATH`, etc.) correctly point to your dataset files within the `/kaggle/input/` directory.
+    *   Update the `VIDEO_BASE_PATHS` and `KEYFRAME_BASE_PATHS` lists to include the paths for all data batches you intend to use.
 
-5.  **Chạy ứng dụng:**
+5.  **Run the Application:**
     ```bash
     python app.py
     ```
-    Ứng dụng sẽ khởi chạy và cung cấp một đường dẫn URL công khai để bạn có thể truy cập giao diện.
+    The script will initialize all backend components and launch the Gradio web server. A public-sharing URL will be generated for you to access the interface.
 
-## 📂 Cấu trúc Thư mục
+## 📂 Project Structure
 
 ```
 Project_AIC_Ver2/
  ┣ search_core/
- ┃ ┣ basic_searcher.py         # Lõi tìm kiếm cơ bản (FAISS + CLIP)
- ┃ ┣ gemini_text_handler.py    # Xử lý văn bản bằng Gemini
- ┃ ┣ master_searcher.py        # Điều phối viên chính của hệ thống tìm kiếm
- ┃ ┣ mmr_builder.py            # Module đa dạng hóa kết quả (MMR)
- ┃ ┣ openai_handler.py         # Xử lý hình ảnh/VQA bằng OpenAI
- ┃ ┣ query_decomposer.py       # Phân rã truy vấn phức tạp
- ┃ ┣ semantic_searcher.py      # Lõi tái xếp hạng đa tầng
- ┃ ┣ task_analyzer.py          # Phân loại loại truy vấn
- ┃ ┣ trake_solver.py           # Giải quyết nhiệm vụ tìm chuỗi hành động
- ┃ ┣ transcript_searcher.py    # Lõi tìm kiếm trên lời thoại
- ┃ ┗ vqa_handler.py            # Xử lý hỏi đáp hình ảnh
+ ┃ ┣ basic_searcher.py         # Core retrieval engine (FAISS + CLIP)
+ ┃ ┣ gemini_text_handler.py    # Handler for Google Gemini API
+ ┃ ┣ master_searcher.py        # Main search orchestrator
+ ┃ ┣ mmr_builder.py            # Result diversification engine (MMR)
+ ┃ ┣ openai_handler.py         # Handler for OpenAI API (VQA)
+ ┃ ┣ query_decomposer.py       # Decomposes complex queries
+ ┃ ┣ semantic_searcher.py      # Multi-stage reranking engine
+ ┃ ┣ task_analyzer.py          # Classifies query types (KIS, QNA, TRAKE)
+ ┃ ┣ trake_solver.py           # Solves action sequence tracking tasks
+ ┃ ┣ transcript_searcher.py    # High-performance transcript search
+ ┃ ┗ vqa_handler.py            # Visual Question Answering logic
  ┣ utils/
- ┃ ┣ api_utils.py              # Tiện ích cho việc gọi API (retry logic)
- ┃ ┣ cache_manager.py          # Quản lý cache cho các vector đối tượng
- ┃ ┣ formatting.py             # Định dạng dữ liệu cho hiển thị và nộp bài
- ┃ ┣ image_cropper.py          # Cắt vùng ảnh theo bounding box
- ┃ ┣ spatial_engine.py         # Logic xử lý quan hệ không gian
- ┃ ┣ video_utils.py            # Tiện ích xử lý video (cắt clip)
+ ┃ ┣ api_utils.py              # Decorator for API call retries
+ ┃ ┣ cache_manager.py          # Caches computed object vectors
+ ┃ ┣ formatting.py             # Formats data for submission and UI
+ ┃ ┣ image_cropper.py          # Crops image regions by bounding box
+ ┃ ┣ spatial_engine.py         # Logic for spatial relationship checks
+ ┃ ┣ video_utils.py            # Video processing utilities (e.g., clipping)
  ┃ ┗ __init__.py
- ┣ app.py                      # Entry point, khởi chạy ứng dụng Gradio
- ┣ backend_loader.py           # Tải và khởi tạo các thành phần backend
- ┣ config.py                   # Tệp cấu hình trung tâm
- ┣ event_handlers.py           # Xử lý sự kiện từ giao diện người dùng
- ┣ README.md                   # Tài liệu hướng dẫn này
- ┣ requirements.txt            # Danh sách các thư viện Python cần thiết
- ┣ ui_helpers.py               # Hàm hỗ trợ xây dựng giao diện (HTML động)
- ┗ ui_layout.py                # Định nghĩa bố cục giao diện Gradio
+ ┣ app.py                      # Main Gradio application entry point
+ ┣ backend_loader.py           # Initializes all backend components
+ ┣ config.py                   # Central configuration for paths and keys
+ ┣ event_handlers.py           # Functions triggered by UI events
+ ┣ README.md                   # This documentation file
+ ┣ requirements.txt            # Python dependencies
+ ┣ ui_helpers.py               # Helper functions for building the UI
+ ┗ ui_layout.py                # Defines the Gradio UI component layout
 ```
+
+## 📜 License
+
+This project is distributed under the MIT License. See the `LICENSE` file for more information.
